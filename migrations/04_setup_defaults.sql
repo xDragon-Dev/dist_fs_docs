@@ -109,4 +109,4 @@ VALUES
     (5, 'Food Security'), -- Seguridad Alimentaria 
 
     -- GENERAL
-    (6, 'General'); -- Seguridad Alimentaria 
+    (6, 'General');

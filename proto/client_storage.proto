@@ -1,0 +1,51 @@
+syntax = "proto3";
+package client_storage;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+//Datatype that holds some metadata and info about a file upload it ✅
+message UploadHeader {
+  string auth_jwt     = 1;
+  string operation_id = 2;
+  bool   overwrite    = 3;
+  string checksum     = 4;
+}
+
+//Datatype that contains binary file content and header ✅
+message UploadChunk {
+  oneof data {
+    UploadHeader header  = 1;
+    bytes        content = 2;
+  }
+}
+
+//Datatype that holds the data of the file you want to download ✅
+message DownloadResponse {
+  bytes content = 1;
+}
+
+//Request to acces or indicate action related to a file
+message FileRequest {
+  string auth_jwt        = 1;
+  string operation_id    = 2; // Token temporal para que el Storage confíe en el cliente
+  string storage_node_id = 3;
+  string file_id         = 4;
+}
+
+//-----SERVICE RELATED TO ALL FILE OPERATIONS BETWEEN CLIENTS AND STORAGE SERVERS-----
+service StorageService{
+  //Obtains all bytes of your file and stores it
+  rpc UploadFile(stream UploadChunk) returns (google.protobuf.Empty);
+  //Returns all bytes of a file
+  rpc DownloadFile(FileRequest) returns (stream DownloadResponse);
+  //Deletes a file from a storage server
+  rpc DeleteFile(FileRequest) returns (google.protobuf.Empty);
+}
+
+/*
+ ! NOTAS DE DISEÑO:
+ !No sé si existan algoritmos para encontrar archivos rápidamente
+ !No sé si existan metodologías de almacenamiento (jerarquías de carpetas y archivos, etc)
+ !Los archivos deberían estar encriptados (creo) pero cómo?
+ */

@@ -1,9 +1,10 @@
 mod dist_fs_proto_buf {
-    tonic::include_proto!("dist_fs");
+    tonic::include_proto!("client_storage");
 }
+
 use dist_fs_proto_buf::storage_service_server::{StorageService, StorageServiceServer};
 use dist_fs_proto_buf::upload_chunk::Data;
-use dist_fs_proto_buf::{AssignedNode, DownloadResponse, UploadChunk};
+use dist_fs_proto_buf::{DownloadResponse, FileRequest, UploadChunk};
 
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -12,14 +13,12 @@ use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::ReceiverStream;
 
+use tonic::transport::Server;
 use tonic::{Request, Response, Status, Streaming};
 
-struct Storage;
+use uuid::Uuid;
 
-#[derive(Clone)]
-struct MyExtension{
-    data: String
-}
+struct Storage;
 
 #[tonic::async_trait]
 impl StorageService for Storage {
@@ -27,8 +26,8 @@ impl StorageService for Storage {
         &self,
         request: Request<Streaming<UploadChunk>>,
     ) -> Result<Response<()>, Status> {
-
         let mut streaming = request.into_inner();
+
         let header = match streaming.next().await {
             Some(chunk_result) => match chunk_result?.data {
                 Some(Data::Header(h)) => h,
@@ -39,21 +38,17 @@ impl StorageService for Storage {
             None => return Err(Status::invalid_argument("Empty stream")),
         };
 
-        // TODO: SE DDEBE COMPROBAR QUE LA ACCIÓN ES LEGAL CON "AUTH TOKEN"
+        //Se comprueba aquí o en el middleware? si es en el middleware cómo?
+        let jwt = header.auth_jwt;
 
-        // ! "TOTAL SIZE" PARECE SER INNUTIL, CONSIDERAR DESECHARLO (DEL HEADER)
-        // ! "FILE NAME" SER INNUTIL, CONSIDERAR DESECHARLO (DEL HEADER)
 
-        println!(
-            "recibiendo archivo {} ({} bytes), sobreescribir: {}",
-            header.file_name, header.total_size, header.overwrite
-        );
-
-        // TODO: El data server debe crear un UUID para nombrar el archivo, todavía falta
+        // TODO: SE DDEBE COMPROBAR QUE LA ACCIÓN ES LEGAL CON "AUTH TOKEN" (middleware en tower, cómo?)
         // TODO: Después enviarle a metadata server el UUID con el que lo guardé
 
         // ! Todavía requiero una ruta alternativa cuando necesito "sobreescribir", eliminar el anterior o así está bien
-        let mut file = File::create("nombre_generado_por_mi_xd")
+        let uuid = Uuid::new_v4();
+
+        let mut file = File::create(uuid.to_string())
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -69,6 +64,9 @@ impl StorageService for Storage {
                 }
             }
         }
+
+        // ! Todavía requiero comprobar el checksum del archivo para comprobar que todo estaba bien
+
         Ok(Response::new(()))
     }
 
@@ -78,20 +76,9 @@ impl StorageService for Storage {
 
     async fn download_file(
         &self,
-        request: Request<AssignedNode>,
+        request: Request<FileRequest>,
     ) -> Result<Response<Self::DownloadFileStream>, Status> {
-        /*
-        *NOTAS DE CAMBIOS!
-
-        eliminar "total size" de UploadHeader
-        eliminar "file name" de UploadHeader
-
-        eliminar "node id" de AssignedNode
-        eliminar "file id" de AssignedNode
-
-        la función remota "download_file" no requiere "Assigned Node" como argumento
-        Crear en su lugar un "DownloadRequest" que solo contenga "auth token"
-        */
+        
         // ! IPV4 PARECE SER INNUTIL, CONSIDERAR DESECHARLO (PARA ESTA REQUEST)
         // ? "FILE ID" PODRÍA SER INUTIL SI SE TOMA DE DESICIÓN DE DISEÑO DE OBTENER EL FILE ID DESDE EL METADATA SERVER
         // ! SE DEBE COMPROBAR QUE SE CONECTA AL NODO CORRECTO CON EL "NODE ID" O DESECHAR EL "NODE ID"
@@ -126,14 +113,14 @@ impl StorageService for Storage {
         Ok(Response::new(ReceiverStream::new(xr)))
     }
 
-    async fn delete_file(&self, request: Request<AssignedNode>) -> Result<Response<()>, Status> {
-        // ! IPV4 PARECE SER INNUTIL, CONSIDERAR DESECHARLO (PARA ESTA REQUEST)
+    async fn delete_file(&self, request: Request<FileRequest>) -> Result<Response<()>, Status> {
         // ? "FILE ID" PODRÍA SER INUTIL SI SE TOMA DE DESICIÓN DE DISEÑO DE OBTENER EL FILE ID DESDE EL METADATA SERVER
-        // ! SE DEBE COMPROBAR QUE SE CONECTA AL NODO CORRECTO CON EL "NODE ID" O DESECHAR EL "NODE ID"
+        // TODO: SE DEBE COMPROBAR QUE SE CONECTA AL NODO CORRECTO CON EL "NODE ID" O DESECHAR EL "NODE ID"
         // TODO: SE DDEBE COMPROBAR QUE LA ACCIÓN ES LEGAL CON "AUTH TOKEN"
 
         let assigned_node = request.into_inner();
-        File::open(assigned_node.file_id)
+
+        tokio::fs::remove_file(assigned_node.file_id)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -141,4 +128,84 @@ impl StorageService for Storage {
     }
 }
 
-fn main() {}
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = "[::1]:21416".parse().unwrap();
+    let svr = StorageServiceServer::new(Storage);
+    Server::builder().add_service(svr).serve(addr).await?;
+    Ok(())
+}
+
+/*
+EJEMPLO BASICO DE CONEXIÓN SERVER
+
+#[tokio::main]
+async fn main() -> Result<(),Box<dyn std::error::Error>>{
+    let addr = "[::1]:21416".parse().unwrap();
+    let svr = StorageServiceServer::new(Storage);
+
+    Server::builder()
+        .add_service(svr)
+        .serve(addr)
+        .await?;
+    Ok(())
+}
+
+EJEMPLO BASICO DE CONEXIÓN CLIENTE
+
+use dist_fs_proto_buf::storage_service_client::StorageServiceClient;
+
+#[tokio::main]
+async fn main() -> Result<(),Box<dyn std::error::Error>>{
+    let endpoint = Endpoint::from_static();
+    let mut connection = StorageServiceClient::connect(endpoint).await.unwrap();
+
+    let request = AssignedNode {
+        storage_node_id: "String".into(),
+        ipv4_address: "String".into(),
+        auth_token: "String".into(),
+        file_id: "String".into(),
+    };
+    let response = connection.delete_file(request).await?;
+    println!("respuesta: {:?}",response.into_inner());
+}
+
+#[tokio::main]
+async fn main() -> Result<(),Box<dyn std::error::Error>>{
+    let channel = Endpoint::from_static("[::1]::31416").connect().await?;
+    let mut connection = StorageServiceClient::new(channel);
+
+    let request = AssignedNode {
+        storage_node_id: "String".into(),
+        ipv4_address: "String".into(),
+        auth_token: "String".into(),
+        file_id: "String".into(),
+    };
+    let response = connection.delete_file(request).await?;
+    println!("respuesta: {:?}",response.into_inner());
+}
+
+
+EJEMPLO DE BALANCE DE CARGA
+#[tokio::main]
+async fn main() -> Result<(),Box<dyn std::error::Error>>{
+    let ips = ["[::1]:21416","[::1]:21417"];
+
+    let endpoints = ips.into_iter().map(|ip|Endpoint::from_static(ip));
+    let channel = Channel::balance_list(endpoints);
+
+    let mut connection = StorageServiceClient::new(channel);
+
+    let request = AssignedNode {
+        storage_node_id: "String".into(),
+        ipv4_address: "String".into(),
+        auth_token: "String".into(),
+        file_id: "String".into(),
+    };
+
+    let response = connection.delete_file(request).await?;
+
+    println!("respuesta: {:?}",response.into_inner());
+    Ok(())
+}
+*/

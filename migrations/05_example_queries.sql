@@ -107,3 +107,15 @@ VALUES
     ('da507d7d-8d65-4933-aa7c-7210961906b7', 75),
 
     ('61815cc3-1e51-47af-82df-110ef9c98e26', 82);
+
+
+INSERT INTO operation_ids DEFAULT VALUES 
+RETURNING operation;
+
+INSERT INTO operation_ids VALUES 
+('92390b1d-e4fb-4d4e-80f3-a0d5c780a505');
+
+/*
+DELETE FROM operation_ids 
+WHERE operation = 'uuid-a-borrar';
+*/

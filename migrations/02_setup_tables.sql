@@ -67,3 +67,7 @@ CREATE TABLE document_storage_nodes (
     content_hash TEXT NOT NULL,
     PRIMARY KEY (document_id, storage_node_id)
 );
+
+CREATE TABLE operation_ids (
+    operation UUID PRIMARY KEY DEFAULT gen_random_uuid()
+)

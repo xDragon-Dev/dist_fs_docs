@@ -50,7 +50,7 @@ pub fn generate_jwt(jwt_claims: JWTClaims) -> Result<String, jsonwebtoken::error
     Ok(jwt)
 }
 
-pub fn verificate_jwt(jwt: String) -> Result<JWTClaims, jsonwebtoken::errors::Error> {
+pub fn _verificate_jwt(jwt: String) -> Result<JWTClaims, jsonwebtoken::errors::Error> {
     let decoding_key = DecodingKey::from_secret(SECRET);
     let validation = Validation::new(jsonwebtoken::Algorithm::HS256);
 

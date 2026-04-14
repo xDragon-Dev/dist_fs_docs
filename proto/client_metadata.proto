@@ -1,0 +1,72 @@
+syntax = "proto3";
+package client_metadata;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+//Information about the moveRequest of a file or path ✅
+message MovementRequest {
+  string source_path = 1;
+  string dest_path   = 2;
+}
+
+//Datatype that holds a path to a directory ✅
+message PathRequest {
+  string path = 1;
+}
+
+//Datatype that holds info about an asigned node when a client - storage server interaction is requested ✅
+message AssignedNode {
+  string storage_node_id = 1;
+  string ipv4_address    = 2; // "192.168.1.100:50051"
+  string auth_token      = 3; // Token temporal para que el Storage confíe en el cliente
+  string file_id         = 4;
+}
+
+//Enum to specify if an item is a file or directory ✅
+enum ArchiveType {
+  FILE      = 0;
+  DIRECTORY = 1;
+}
+
+//Enum to specify if a shared item has read or write mermissions ✅
+enum SharingPermissions {
+  READ  = 0;
+  WRITE = 1;
+}
+
+//Datatype that contains relevant information about a file or directory ✅
+message FileMetadata {
+  string                    path        = 1;
+  uint64                    size        = 2;
+  ArchiveType               type        = 3;
+  SharingPermissions        permissions = 4;
+  google.protobuf.Timestamp created     = 5;
+  google.protobuf.Timestamp accesed     = 6;
+  string                    checksum    = 7;
+}
+
+//Datatype that holds a "list" of file items and its metadata ✅
+message DirectoryListing {
+  repeated FileMetadata items = 1;
+}
+
+//-----SERVICE RELATED TO ALL FILE OPERATIONS BETWEEN CLIENTS AND METADATA SERVERS-----
+service MetadataService {
+  //Function related to MOVE or RENAME any FOLDER or ARCHIVE
+  rpc MoveItem(MovementRequest) returns (google.protobuf.Empty);
+  //"Creates" a PathRequest in a metadata server
+  rpc CreateDirectory(PathRequest) returns (google.protobuf.Empty);
+  //"Deletes" a directory or file in a metadata server and does an internal call to a storage server to actually delete it, rpc status response highly depends on the storage server response
+  rpc DeleteItem(PathRequest) returns (google.protobuf.Empty);
+
+  //Obtains info about an appropriate storage server to upload the requested file and returns such info.
+  rpc RequestUpload(FileMetadata) returns (AssignedNode);
+  //Obtains info about the storage server that contains the requested file and returns such info.
+  rpc RequestDownload(PathRequest) returns (AssignedNode);
+
+  //Returns all items in a PathRequest
+  rpc ListDirectory(PathRequest) returns (DirectoryListing);
+  //Obtains metadata
+  rpc GetMetadata(PathRequest) returns (FileMetadata);
+}

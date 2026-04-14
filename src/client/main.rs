@@ -3,16 +3,12 @@ mod validation;
 
 use auth::*;
 use chrono::{Duration, prelude::*};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use sqlx::postgres::PgPoolOptions;
-use sqlx::prelude::*;
 
 use dotenvy::dotenv;
 use std::env;
-
-use validation::*;
 
 #[tokio::main]
 async fn main() {
@@ -42,7 +38,6 @@ async fn main() {
     println!("{:#?}", retults);
     */
 
-
     let _uuid = Uuid::new_v4();
     let _obtained_uuid = Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap();
     let _exp_time = Utc::now()
@@ -61,7 +56,7 @@ async fn main() {
     let generated_jwt = generate_jwt(jwt_payload_from_json).unwrap();
     println!("{}", generated_jwt);
 
-    for _i in 0..6{
-        println!("{}",Uuid::new_v4());
+    for _i in 0..6 {
+        println!("{}", Uuid::new_v4());
     }
 }

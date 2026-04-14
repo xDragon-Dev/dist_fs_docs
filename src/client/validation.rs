@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::{FromRow, Type};
 use uuid::Uuid;
 
-
-#[derive(Debug,Serialize,Deserialize,Type)]
+#[derive(Debug, Serialize, Deserialize, Type)]
 enum Role {
     User,
     Admin,
@@ -21,7 +20,7 @@ pub enum DocumentType {
     Thesis,
 }
 
-#[derive(Debug,Serialize,Deserialize,FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct User {
     username_hash: String,
     password_hash: String,
@@ -42,6 +41,15 @@ pub struct ScientificDocument {
     pub publication_date: chrono::DateTime<Utc>,
     pub language: String,
 }
+/*
+Verificar que es articulo scientifico si o si, con:
+
+antecedentes
+marco teorico
+antecedentes
+resultados
+conclusiones
+*/
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Topic(String);
