@@ -1,6 +1,5 @@
 syntax = "proto3";
-
-package storage_storage;
+package storage_metadata;
 
 import "google/protobuf/empty.proto";
 
@@ -26,5 +25,5 @@ service StorageCoordinator {
   // El Storage confirma que un archivo se escribió correctamente
   rpc ConfirmUpload(ReportFileRequest) returns (google.protobuf.Empty);
   // El Storage confirma que un archivo se eliminó correctamente
-  rpc ConfirmUpload(ReportFileRequest) returns (google.protobuf.Empty);
+  rpc ConfirmDelete(ReportFileRequest) returns (google.protobuf.Empty);
 }

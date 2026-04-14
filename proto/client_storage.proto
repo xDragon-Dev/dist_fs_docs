@@ -2,7 +2,6 @@ syntax = "proto3";
 package client_storage;
 
 import "google/protobuf/empty.proto";
-import "google/protobuf/timestamp.proto";
 
 //Datatype that holds some metadata and info about a file upload it ✅
 message UploadHeader {

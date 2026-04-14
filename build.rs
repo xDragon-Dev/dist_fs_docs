@@ -4,6 +4,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "proto/client_storage.proto",
         "proto/metadata_metadata.proto",
         "proto/storage_storage.proto",
+        "proto/storage_metadata.proto",
     ];
 
     tonic_prost_build::configure()
