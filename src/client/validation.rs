@@ -22,7 +22,7 @@ pub enum DocumentType {
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct User {
-    username_hash: String,
+    user_name: String,
     password_hash: String,
     user_role: Role,
 }
@@ -41,6 +41,14 @@ pub struct ScientificDocument {
     pub publication_date: chrono::DateTime<Utc>,
     pub language: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Topic(String);
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubTopic(String);
+
+
 /*
 Verificar que es articulo scientifico si o si, con:
 
@@ -50,9 +58,3 @@ antecedentes
 resultados
 conclusiones
 */
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Topic(String);
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SubTopic(String);

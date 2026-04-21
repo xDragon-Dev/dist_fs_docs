@@ -1,6 +1,6 @@
 --Creates all related tables in the database
 CREATE TABLE  users (
-    username_hash TEXT PRIMARY KEY, 
+    user_name TEXT PRIMARY KEY, 
     password_hash TEXT NOT NULL,
     user_role role NOT NULL DEFAULT 'User'
 );
@@ -21,7 +21,7 @@ CREATE TABLE sub_topics (
 
 CREATE TABLE scientific_documents (
     id UUID PRIMARY KEY, --DEFAULT gen_random_uuid()
-    posted_by TEXT NOT NULL REFERENCES users(username_hash),
+    posted_by TEXT NOT NULL REFERENCES users(user_name),
     title TEXT NOT NULL,
     authors TEXT[] NOT NULL,
     abstract TEXT NOT NULL,

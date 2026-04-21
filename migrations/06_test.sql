@@ -62,7 +62,7 @@ Obtener todos los documentos relacionados a un usuario
 Obtener todos los tópicos
 ?Obtener todos los topicos relacionados a un documento
 
-*CONSULTAS DE SUBTOPICO
+*CONSULTAS DE SUBTOPICO 
 -Dar de alta subtematica
 -Dar de baja subtematica (Sin referencias para User, con o sin referencias para Admin)
 -----------------------------------------------------
