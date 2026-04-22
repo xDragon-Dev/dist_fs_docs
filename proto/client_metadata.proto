@@ -102,13 +102,15 @@ message ScientificDocument {
   string                    language         = 10;
 }
 
+//kinf of content in a search request
 enum SearchKind {
-  TITLE  = 0;
-  POSTER = 1;
-  AUTHOR = 2;
-  KEYWOD = 3;
+  TITLE     = 0;
+  PUBLISHER = 1;
+  AUTHOR    = 2;
+  KEYWOD    = 3;
 }
 
+//Datatype that contains search constraints
 message SearchRequest {
   string                    content        = 1;
   SearchKind                search_kind    = 2;
@@ -120,6 +122,7 @@ message SearchRequest {
   repeated string           languages      = 8;
 }
 
+//Basic 
 message SearchResult {
   string                    id               = 1;
   string                    posted_by        = 2;

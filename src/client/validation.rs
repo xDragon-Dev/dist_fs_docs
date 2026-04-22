@@ -9,6 +9,13 @@ enum Role {
     Admin,
 }
 
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct User {
+    user_name: String,
+    password_hash: String,
+    user_role: Role,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum DocumentType {
     OriginalArticle,
@@ -20,12 +27,11 @@ pub enum DocumentType {
     Thesis,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
-pub struct User {
-    user_name: String,
-    password_hash: String,
-    user_role: Role,
-}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Topic(String);
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubTopic(String);
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ScientificDocument {
@@ -41,13 +47,6 @@ pub struct ScientificDocument {
     pub publication_date: chrono::DateTime<Utc>,
     pub language: String,
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Topic(String);
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SubTopic(String);
-
 
 /*
 Verificar que es articulo scientifico si o si, con:

@@ -1,62 +1,155 @@
 mod auth;
 mod validation;
+mod client_storage_proto {
+    tonic::include_proto!("client_storage");
+}
 
-use auth::*;
-use chrono::{Duration, prelude::*};
-use uuid::Uuid;
+use std::path::Path;
 
-use sqlx::postgres::PgPoolOptions;
+use futures_util::StreamExt;
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
+use tokio_util::io::ReaderStream;
 
-use dotenvy::dotenv;
-use std::env;
+use client_storage_proto::UploadChunk;
+use client_storage_proto::UploadHeader;
+use client_storage_proto::storage_service_client::StorageServiceClient;
+use client_storage_proto::upload_chunk::Data;
+
+use crate::client_storage_proto::FileRequest;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //Loads .env file and all of its variables
-    dotenv().ok();
-    let database_url =
-        env::var("DATABASE_URL").expect("Enviroment variable \"DATABASE_URL\" must be set");
-
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
-        .await
-        .unwrap();
-    /*
-    sqlx::query(
-        "INSERT INTO users(usr_name, usr_pass) VALUES ('Juanito', '1234'), ('Pedrito', '5678')",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-
-    let retults: Vec<User> = sqlx::query_as("SELECT * FROM users")
-        .fetch_all(&pool)
-        .await
-        .unwrap();
-
-    println!("{:#?}", retults);
-    */
-
-    let _uuid = Uuid::new_v4();
-    let _obtained_uuid = Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap();
-    let _exp_time = Utc::now()
-        .checked_add_signed(Duration::days(30))
-        .expect("Date out of range")
-        .timestamp();
-
-    let jwt_payload = JWTClaims::default();
-
-    let json_string = serde_json::to_string_pretty(&jwt_payload).unwrap();
-    println!("{}", json_string);
-
-    let jwt_payload_from_json = serde_json::from_str::<JWTClaims>(&json_string).unwrap();
-    println!("{:#?}", jwt_payload_from_json);
-
-    let generated_jwt = generate_jwt(jwt_payload_from_json).unwrap();
-    println!("{}", generated_jwt);
-
-    for _i in 0..6 {
-        println!("{}", Uuid::new_v4());
-    }
+    upload_file("Filename.pdf").await?;
+    download_file().await?;
+    delete_file().await?;
+    Ok(())
 }
+
+async fn upload_file(path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
+    let mut connection = StorageServiceClient::connect("http://[::1]:31416").await?;
+    let header_chunk = UploadChunk {
+        data: Some(Data::Header(UploadHeader {
+            auth_jwt: "JWT".into(),
+            operation_id: "UUID".into(),
+            overwrite: true, //No sirve XDDD
+            checksum: "Checksum".into(),
+        })),
+    };
+    let file = File::open(path).await?;
+    let reader_stream = ReaderStream::new(file);
+
+    let content_stream = reader_stream.map(|result| match result {
+        Ok(bytes) => UploadChunk {
+            data: Some(Data::Content(bytes.to_vec())),
+        },
+        Err(_) => UploadChunk { data: None },
+    });
+    let chunks = tokio_stream::once(header_chunk).chain(content_stream);
+    connection.upload_file(chunks).await?;
+    Ok(())
+}
+
+async fn download_file() -> Result<(), Box<dyn std::error::Error>> {
+    let mut connection = StorageServiceClient::connect("http://[::1]:31416").await?;
+    let request = FileRequest {
+        auth_jwt: "JWT".into(),
+        operation_id: "UUID".into(),
+        storage_node_id: "UUID".into(),
+        file_id: "e030747e-f2b9-4bd1-a464-1e6c8541dae4".into(),
+    };
+    let response = connection.download_file(request).await?;
+    let mut stream = response.into_inner();
+    let mut file = File::create("El nombre yo lo pongo").await?;
+    while let Some(result) = stream.next().await {
+        file.write(&result?.content).await?;
+    }
+    Ok(())
+}
+
+async fn delete_file() -> Result<(), Box<dyn std::error::Error>> {
+    let mut connection = StorageServiceClient::connect("http://[::1]:31416").await?;
+    let request = FileRequest {
+        auth_jwt: "JWT".into(),
+        operation_id: "UUID".into(),
+        storage_node_id: "UUID".into(),
+        file_id: "e030747e-f2b9-4bd1-a464-1e6c8541dae4".into(),
+    };
+    connection.delete_file(request).await?;
+    Ok(())
+}
+
+/*
+EJEMPLO BASICO DE CONEXIÓN SERVER
+
+#[tokio::main]
+async fn main() -> Result<(),Box<dyn std::error::Error>>{
+    let addr = "[::1]:31416".parse().unwrap();
+    let svr = StorageServiceServer::new(Storage);
+
+    Server::builder()
+        .add_service(svr)
+        .serve(addr)
+        .await?;
+    Ok(())
+}
+
+EJEMPLO BASICO DE CONEXIÓN CLIENTE
+
+use client_storage_proto::storage_service_client::StorageServiceClient;
+
+#[tokio::main]
+async fn main() -> Result<(),Box<dyn std::error::Error>>{
+    let endpoint = Endpoint::from_static();
+    let mut connection = StorageServiceClient::connect(endpoint).await.unwrap();
+
+    let request = AssignedNode {
+        storage_node_id: "String".into(),
+        ipv4_address: "String".into(),
+        auth_token: "String".into(),
+        file_id: "String".into(),
+    };
+    let response = connection.delete_file(request).await?;
+    println!("respuesta: {:?}",response.into_inner());
+}
+
+#[tokio::main]
+async fn main() -> Result<(),Box<dyn std::error::Error>>{
+    let channel = Endpoint::from_static("[::1]::31416").connect().await?;
+    let mut connection = StorageServiceClient::new(channel);
+
+    let request = AssignedNode {
+        storage_node_id: "String".into(),
+        ipv4_address: "String".into(),
+        auth_token: "String".into(),
+        file_id: "String".into(),
+    };
+    let response = connection.delete_file(request).await?;
+    println!("respuesta: {:?}",response.into_inner());
+}
+
+
+EJEMPLO DE BALANCE DE CARGA
+#[tokio::main]
+async fn main() -> Result<(),Box<dyn std::error::Error>>{
+    let ips = ["[::1]:21416","[::1]:21417"];
+
+    let endpoints = ips.into_iter().map(|ip|Endpoint::from_static(ip));
+    let channel = Channel::balance_list(endpoints);
+
+    let mut connection = StorageServiceClient::new(channel);
+
+    let request = AssignedNode {
+        storage_node_id: "String".into(),
+        ipv4_address: "String".into(),
+        auth_token: "String".into(),
+        file_id: "String".into(),
+    };
+
+    let response = connection.delete_file(request).await?;
+
+    println!("respuesta: {:?}",response.into_inner());
+    Ok(())
+}
+*/
