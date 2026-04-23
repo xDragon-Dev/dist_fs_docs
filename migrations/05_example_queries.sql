@@ -1,4 +1,4 @@
-INSERT INTO users (username_hash, password_hash, user_role)
+INSERT INTO users (user_name, password_hash, user_role)
 VALUES 
     ('Juanito','12345678','User'),
     ('Pedrito','12345678','User'),

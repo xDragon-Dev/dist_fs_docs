@@ -1,7 +1,9 @@
 mod auth;
+mod checksum;
+mod password_hash;
 mod validation;
 mod client_storage_proto {
-    tonic::include_proto!("client_storage");
+    tonic::include_proto!("storage");
 }
 
 use std::path::Path;
@@ -13,8 +15,10 @@ use tokio_util::io::ReaderStream;
 
 use client_storage_proto::UploadChunk;
 use client_storage_proto::UploadHeader;
-use client_storage_proto::storage_service_client::StorageServiceClient;
 use client_storage_proto::upload_chunk::Data;
+
+use client_storage_proto::private_storage_client::PrivateStorageClient;
+use client_storage_proto::public_storage_client::PublicStorageClient;
 
 use crate::client_storage_proto::FileRequest;
 
@@ -28,12 +32,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn upload_file(path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
-    let mut connection = StorageServiceClient::connect("http://[::1]:31416").await?;
+    let mut connection = PrivateStorageClient::connect("http://[::1]:31416").await?;
     let header_chunk = UploadChunk {
         data: Some(Data::Header(UploadHeader {
-            auth_jwt: "JWT".into(),
-            operation_id: "UUID".into(),
-            overwrite: true, //No sirve XDDD
             checksum: "Checksum".into(),
         })),
     };
@@ -52,11 +53,8 @@ async fn upload_file(path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::E
 }
 
 async fn download_file() -> Result<(), Box<dyn std::error::Error>> {
-    let mut connection = StorageServiceClient::connect("http://[::1]:31416").await?;
+    let mut connection = PublicStorageClient::connect("http://[::1]:31416").await?;
     let request = FileRequest {
-        auth_jwt: "JWT".into(),
-        operation_id: "UUID".into(),
-        storage_node_id: "UUID".into(),
         file_id: "e030747e-f2b9-4bd1-a464-1e6c8541dae4".into(),
     };
     let response = connection.download_file(request).await?;
@@ -69,11 +67,8 @@ async fn download_file() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn delete_file() -> Result<(), Box<dyn std::error::Error>> {
-    let mut connection = StorageServiceClient::connect("http://[::1]:31416").await?;
+    let mut connection = PrivateStorageClient::connect("http://[::1]:31416").await?;
     let request = FileRequest {
-        auth_jwt: "JWT".into(),
-        operation_id: "UUID".into(),
-        storage_node_id: "UUID".into(),
         file_id: "e030747e-f2b9-4bd1-a464-1e6c8541dae4".into(),
     };
     connection.delete_file(request).await?;

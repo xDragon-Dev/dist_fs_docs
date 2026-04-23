@@ -1,13 +1,22 @@
+mod middleware;
 mod storage;
-use tonic::transport::Server;
 
-use storage::{Storage, StorageServiceServer};
+use storage::{PrivateStorageServer, PublicStorageServer, Storage};
+use tonic::transport::Server;
+use dotenvy::dotenv;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenv().ok();
+
     let addr = "[::1]:31416".parse().unwrap();
-    let svr = StorageServiceServer::new(Storage);
-    Server::builder().add_service(svr).serve(addr).await?;
+    let pub_svc = PublicStorageServer::new(Storage);
+    let priv_svc = PrivateStorageServer::new(Storage);
+    Server::builder()
+        .add_service(pub_svc)
+        .add_service(priv_svc)
+        .serve(addr)
+        .await?;
     Ok(())
 }
 

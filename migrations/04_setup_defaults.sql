@@ -1,4 +1,4 @@
-INSERT INTO users (username_hash, password_hash, user_role)
+INSERT INTO users (user_name, password_hash, user_role)
 VALUES ('Admin', '12345678','Admin');
 
 INSERT INTO topics (name)

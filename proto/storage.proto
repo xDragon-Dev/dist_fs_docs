@@ -1,14 +1,11 @@
 syntax = "proto3";
-package client_storage;
+package storage;
 
 import "google/protobuf/empty.proto";
 
 //Datatype that holds some metadata and info about a file upload it ✅
 message UploadHeader {
-  string auth_jwt     = 1;
-  string operation_id = 2;
-  bool   overwrite    = 3;
-  string checksum     = 4;
+  string checksum = 1;
 }
 
 //Datatype that contains binary file content and header ✅
@@ -26,18 +23,19 @@ message DownloadResponse {
 
 //Request to acces or indicate action related to a file
 message FileRequest {
-  string auth_jwt        = 1;
-  string operation_id    = 2; // Token temporal para que el Storage confíe en el cliente
-  string storage_node_id = 3;
-  string file_id         = 4;
+  string file_id = 1;
 }
 
-//-----SERVICE RELATED TO ALL FILE OPERATIONS BETWEEN CLIENTS AND STORAGE SERVERS-----
-service StorageService{
-  //Obtains all bytes of your file and stores it
-  rpc UploadFile(stream UploadChunk) returns (google.protobuf.Empty);
+//-----SERVICE RELATED TO ALL PUBLIC OPERATIONS BETWEEN CLIENTS AND STORAGE SERVERS-----
+service PublicStorage{
   //Returns all bytes of a file
   rpc DownloadFile(FileRequest) returns (stream DownloadResponse);
+}
+
+//-----SERVICE RELATED TO ALL PRIVATE FILE OPERATIONS BETWEEN CLIENTS AND STORAGE SERVERS-----
+service PrivateStorage{
+  //Obtains all bytes of your file and stores it
+  rpc UploadFile(stream UploadChunk) returns (google.protobuf.Empty);
   //Deletes a file from a storage server
   rpc DeleteFile(FileRequest) returns (google.protobuf.Empty);
 }

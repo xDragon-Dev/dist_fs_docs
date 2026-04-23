@@ -1,5 +1,5 @@
 syntax = "proto3";
-package client_metadata;
+package metadata;
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
@@ -13,14 +13,14 @@ enum UserKind {
 
 //Datatype that contains relevant information to create a user
 message CreateUserRequest {
-  string user_name = 1;
-  string password  = 2;
+  string   user_name = 1;
+  string   password  = 2;
+  UserKind user_kind = 3;
 }
 
 //Datatype that contains relevant information to delete a user
 message DeleteUserRequest {
   string user_name = 1;
-  string auth_jwt  = 2;
 }
 
 //Datatype that contains relevant information to login
@@ -33,22 +33,16 @@ message LogInRequest {
 message NodeUploadRequest {
   uint64 size     = 1;
   string checksum = 2;
-  string auth_jwt = 3;
 }
 
-//Datatype that contains the id of a document you want to download from a storage node
-message NodeDownloadRequest {
-  string document_id = 1;
-}
-
-//Datatype that contains the id of a document you want to delete from a storage node
-message NodeDeleteRequest {
+//Datatype that contains the id of a document you want to download or delete from a storage node
+message NodeRequest {
   string document_id = 1;
 }
 
 //Datatype that contains information about a storage node you need to download or upload
 message AssignedNode {
-  string ipv4_address = 1; // "192.168.1.100:50051"
+  string ipv4_address = 1; // ej. "192.168.1.100:50051"
   string operation_id = 2; // ID temporal para que el Storage confíe en el cliente
 }
 
@@ -122,37 +116,51 @@ message SearchRequest {
   repeated string           languages      = 8;
 }
 
-//Basic 
+//Basic information to display from a search function result
 message SearchResult {
   string                    id               = 1;
   string                    posted_by        = 2;
   string                    title            = 3;
-  repeated Topic            topics           = 4;
-  repeated SubTopic         sub_topics       = 5;
   DocumentType              document_type    = 6;
   google.protobuf.Timestamp publication_date = 7;
   string                    language         = 8;
 }
 
+//Several search results wrapped in a single datatype 
 message SearchResults {
   repeated SearchResult results = 1;
 }
 
-//-----SERVICE RELATED TO ALL FILE OPERATIONS BETWEEN CLIENTS AND METADATA SERVERS-----
-service MetadataService {
+//-----SERVICE RELATED TO ALL PUBLIC FILE OPERATIONS BETWEEN CLIENTS AND METADATA SERVERS-----
+service PublicMetadata {
   //Creates a user with a given username and password
   rpc CreateUser(CreateUserRequest) returns (google.protobuf.Empty);
-  //Deletes the user with a given username and password
-  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
   //Takes a given username and password and returns a jwt
   rpc LogIn(LogInRequest) returns (google.protobuf.StringValue);
 
+  //Returns the proper node where a document is located to download it
+  rpc GetDownloadNode(NodeRequest) returns (AssignedNode);
+
+  //Returns all topics stored in database
+  rpc GetTopics(google.protobuf.Empty) returns (Topics);
+  //Returns all subtopics stored in database
+  rpc GetSubTopics(google.protobuf.Empty) returns (Topics);
+
+  //Returns the entire metadata of a document given its id
+  rpc GetScientificDocument(ScientificDocumentRequest) returns (ScientificDocument);
+  //Returns basic data of many documets given certain search constraints
+  rpc SearchDocuments(SearchRequest) returns (SearchResults);
+}
+
+//-----SERVICE RELATED TO ALL PRIVATE FILE OPERATIONS BETWEEN CLIENTS AND METADATA SERVERS-----
+service PrivateMetadata {
+  //Deletes the user with a given username and password
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+
   //Returns a proper node to store a document
   rpc GetUploadNode(NodeUploadRequest) returns (AssignedNode);
-  //Returns the proper node where a document is located to download it
-  rpc GetDownloadNode(NodeDownloadRequest) returns (AssignedNode);
   //Returns the proper node where a document is located to delete it
-  rpc GetDeleteNode(NodeDeleteRequest) returns (AssignedNode);
+  rpc GetDeleteNode(NodeRequest) returns (AssignedNode);
 
   //Creates a topic inside the metadata
   rpc CreateTopic(Topic) returns (google.protobuf.Empty);
@@ -163,14 +171,4 @@ service MetadataService {
   rpc CreateSubTopic(SubTopic) returns (google.protobuf.Empty);
   //Deletes a subtopic inside the metadata
   rpc DeleteSubTopic(SubTopic) returns (google.protobuf.Empty);
-  //Returns all topics stored in database
-  rpc GetTopics(google.protobuf.Empty) returns (Topics);
-  //Returns all subtopics stored in database
-  rpc GetSubTopics(google.protobuf.Empty) returns (Topics);
-
-  //Returns the entire metadata of a document given its id
-  rpc GetScientificDocument(ScientificDocumentRequest) returns (ScientificDocument);
-  //Returns basic data of many documets given certain search constraints
-  rpc SearchDocuments(SearchRequest) returns (SearchResults);
-
 }

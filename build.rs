@@ -1,9 +1,9 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let protos = [
-        "proto/client_metadata.proto",
-        "proto/client_storage.proto",
-        "proto/metadata_metadata.proto",
-        "proto/storage_storage.proto",
+        "proto/metadata.proto",
+        "proto/storage.proto",
+        "proto/metadata_replication.proto",
+        "proto/storage_replication.proto",
         "proto/storage_metadata.proto",
     ];
 

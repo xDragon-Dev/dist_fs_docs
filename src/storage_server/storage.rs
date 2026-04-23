@@ -1,10 +1,13 @@
 mod client_storage_proto {
-    tonic::include_proto!("client_storage");
+    tonic::include_proto!("storage");
 }
 
-pub use client_storage_proto::storage_service_server::StorageServiceServer;
+pub use client_storage_proto::private_storage_server::PrivateStorageServer;
+pub use client_storage_proto::public_storage_server::PublicStorageServer;
 
-use client_storage_proto::storage_service_server::StorageService;
+use client_storage_proto::private_storage_server::PrivateStorage;
+use client_storage_proto::public_storage_server::PublicStorage;
+
 use client_storage_proto::upload_chunk::Data;
 use client_storage_proto::{DownloadResponse, FileRequest, UploadChunk};
 
@@ -22,7 +25,48 @@ use uuid::Uuid;
 pub struct Storage;
 
 #[tonic::async_trait]
-impl StorageService for Storage {
+impl PublicStorage for Storage {
+    type DownloadFileStream = ReceiverStream<Result<DownloadResponse, Status>>;
+
+    async fn download_file(
+        &self,
+        request: Request<FileRequest>,
+    ) -> Result<Response<Self::DownloadFileStream>, Status> {
+        // ? "FILE ID" PODRÍA SER INUTIL SI SE TOMA DE DESICIÓN DE DISEÑO DE OBTENER EL FILE ID DESDE EL METADATA SERVER
+        // ! SE DEBE COMPROBAR QUE SE CONECTA AL NODO CORRECTO CON EL "NODE ID" O DESECHAR EL "NODE ID"
+        // TODO: SE DDEBE COMPROBAR QUE LA ACCIÓN ES LEGAL CON "AUTH TOKEN"
+
+        let (xs, xr) = mpsc::channel(10);
+        let inner = request.into_inner();
+
+        tokio::spawn(async move {
+            let mut buffer = [0_u8; 4096];
+            match File::open(inner.file_id).await {
+                Ok(mut file) => {
+                    while let Ok(n) = file.read(&mut buffer).await {
+                        if n == 0 {
+                            break;
+                        }
+                        let response = DownloadResponse {
+                            content: buffer[..n].to_vec(),
+                        };
+                        if xs.send(Ok(response)).await.is_err() {
+                            break;
+                        }
+                    }
+                }
+                Err(e) => {
+                    let _ = xs.send(Err(Status::not_found(e.to_string()))).await;
+                }
+            }
+        });
+
+        Ok(Response::new(ReceiverStream::new(xr)))
+    }
+}
+
+#[tonic::async_trait]
+impl PrivateStorage for Storage {
     async fn upload_file(
         &self,
         request: Request<Streaming<UploadChunk>>,
@@ -38,11 +82,6 @@ impl StorageService for Storage {
             },
             None => return Err(Status::invalid_argument("Empty stream")),
         };
-
-        //Se comprueba aquí o en el middleware? si es en el middleware cómo?
-        let jwt = header.auth_jwt;
-
-        // TODO: SE DDEBE COMPROBAR QUE LA ACCIÓN ES LEGAL CON "AUTH TOKEN" (middleware en tower, cómo?)
         // TODO: Después enviarle a metadata server el UUID con el que lo guardé
 
         // ! Todavía requiero una ruta alternativa cuando necesito "sobreescribir", eliminar el anterior o así está bien
@@ -70,50 +109,9 @@ impl StorageService for Storage {
         Ok(Response::new(()))
     }
 
-    type DownloadFileStream = ReceiverStream<Result<DownloadResponse, Status>>;
-
-    async fn download_file(
-        &self,
-        request: Request<FileRequest>,
-    ) -> Result<Response<Self::DownloadFileStream>, Status> {
-        // ! IPV4 PARECE SER INNUTIL, CONSIDERAR DESECHARLO (PARA ESTA REQUEST)
-        // ? "FILE ID" PODRÍA SER INUTIL SI SE TOMA DE DESICIÓN DE DISEÑO DE OBTENER EL FILE ID DESDE EL METADATA SERVER
-        // ! SE DEBE COMPROBAR QUE SE CONECTA AL NODO CORRECTO CON EL "NODE ID" O DESECHAR EL "NODE ID"
-        // TODO: SE DDEBE COMPROBAR QUE LA ACCIÓN ES LEGAL CON "AUTH TOKEN"
-
-        let (xs, xr) = mpsc::channel(10);
-        let inner = request.into_inner();
-
-        tokio::spawn(async move {
-            // TODO: Aquí debería hacer un método para pedirle al metadata server que archivo quiero abrir
-            let mut buffer = [0_u8; 4096];
-            match File::open(inner.file_id).await {
-                Ok(mut file) => {
-                    while let Ok(n) = file.read(&mut buffer).await {
-                        if n == 0 {
-                            break;
-                        }
-                        let response = DownloadResponse {
-                            content: buffer[..n].to_vec(),
-                        };
-                        if xs.send(Ok(response)).await.is_err() {
-                            break;
-                        }
-                    }
-                }
-                Err(e) => {
-                    let _ = xs.send(Err(Status::not_found(e.to_string()))).await;
-                }
-            }
-        });
-
-        Ok(Response::new(ReceiverStream::new(xr)))
-    }
-
     async fn delete_file(&self, request: Request<FileRequest>) -> Result<Response<()>, Status> {
         // ? "FILE ID" PODRÍA SER INUTIL SI SE TOMA DE DESICIÓN DE DISEÑO DE OBTENER EL FILE ID DESDE EL METADATA SERVER
         // TODO: SE DEBE COMPROBAR QUE SE CONECTA AL NODO CORRECTO CON EL "NODE ID" O DESECHAR EL "NODE ID"
-        // TODO: SE DDEBE COMPROBAR QUE LA ACCIÓN ES LEGAL CON "AUTH TOKEN"
 
         let assigned_node = request.into_inner();
 

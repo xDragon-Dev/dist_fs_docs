@@ -23,25 +23,8 @@ pub struct JWTClaims {
     pub exp: i64,
 }
 
-impl std::default::Default for JWTClaims {
-    //This is meant for testing porpuses only
-    fn default() -> Self {
-        let exp = Utc::now()
-            .checked_add_signed(Duration::minutes(5))
-            // We expect this will never happen
-            .expect("Date out of the 64 bit bounds")
-            .timestamp();
-
-        Self {
-            sub: Uuid::from_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
-            user_role: Role::User,
-            exp,
-        }
-    }
-}
-
 pub fn _generate_jwt(jwt_claims: JWTClaims) -> Result<String, jsonwebtoken::errors::Error> {
-    let secret = env::var("SECRET").expect("Secret must be declared");
+    let secret = env::var("SECRET").expect("Enviroment variable \"SECRET\" must be set");
     let jwt = encode(
         &Header::default(),
         &jwt_claims,
@@ -51,7 +34,7 @@ pub fn _generate_jwt(jwt_claims: JWTClaims) -> Result<String, jsonwebtoken::erro
 }
 
 pub fn _verificate_jwt(jwt: String) -> Result<JWTClaims, jsonwebtoken::errors::Error> {
-    let secret = env::var("SECRET").expect("Secret must be declared");
+    let secret = env::var("SECRET").expect("Enviroment variable \"SECRET\" must be set");
     let decoding_key = DecodingKey::from_secret(secret.as_ref());
     let validation = Validation::new(jsonwebtoken::Algorithm::HS256);
 
