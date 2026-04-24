@@ -1,14 +1,9 @@
 use std::env;
-use std::str::FromStr;
-
-use chrono::{Duration, Utc};
 
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
 use jsonwebtoken::{decode, encode};
 
 use serde::{Deserialize, Serialize};
-
-use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Role {
@@ -18,12 +13,12 @@ pub enum Role {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct JWTClaims {
-    pub sub: Uuid,
+    pub sub: String,
     pub user_role: Role,
     pub exp: i64,
 }
 
-pub fn _generate_jwt(jwt_claims: JWTClaims) -> Result<String, jsonwebtoken::errors::Error> {
+pub fn _generate_jwt(jwt_claims: impl serde::Serialize) -> Result<String, jsonwebtoken::errors::Error> {
     let secret = env::var("SECRET").expect("Enviroment variable \"SECRET\" must be set");
     let jwt = encode(
         &Header::default(),

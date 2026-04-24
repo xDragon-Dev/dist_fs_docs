@@ -32,13 +32,9 @@ impl PublicStorage for Storage {
         &self,
         request: Request<FileRequest>,
     ) -> Result<Response<Self::DownloadFileStream>, Status> {
-        // ? "FILE ID" PODRÍA SER INUTIL SI SE TOMA DE DESICIÓN DE DISEÑO DE OBTENER EL FILE ID DESDE EL METADATA SERVER
         // ! SE DEBE COMPROBAR QUE SE CONECTA AL NODO CORRECTO CON EL "NODE ID" O DESECHAR EL "NODE ID"
-        // TODO: SE DDEBE COMPROBAR QUE LA ACCIÓN ES LEGAL CON "AUTH TOKEN"
-
         let (xs, xr) = mpsc::channel(10);
         let inner = request.into_inner();
-
         tokio::spawn(async move {
             let mut buffer = [0_u8; 4096];
             match File::open(inner.file_id).await {
@@ -60,7 +56,6 @@ impl PublicStorage for Storage {
                 }
             }
         });
-
         Ok(Response::new(ReceiverStream::new(xr)))
     }
 }
@@ -72,19 +67,19 @@ impl PrivateStorage for Storage {
         request: Request<Streaming<UploadChunk>>,
     ) -> Result<Response<()>, Status> {
         let mut streaming = request.into_inner();
-
-        let header = match streaming.next().await {
+        let checksum = match streaming.next().await {
             Some(chunk_result) => match chunk_result?.data {
-                Some(Data::Header(h)) => h,
+                Some(Data::Header(h)) => h.checksum,
                 _ => {
                     return Err(Status::invalid_argument("File Header must be sent first"));
                 }
             },
             None => return Err(Status::invalid_argument("Empty stream")),
         };
-        // TODO: Después enviarle a metadata server el UUID con el que lo guardé
+        // TODO: Verificar que el checksum no existe ya en la base de datos, para no repetir
+        println!("{checksum}");
 
-        // ! Todavía requiero una ruta alternativa cuando necesito "sobreescribir", eliminar el anterior o así está bien
+        // TODO: Después enviarle a metadata server el UUID con el que lo guardé o que el metadata server lo genere y yo lo guardo aquí
         let uuid = Uuid::new_v4();
 
         let mut file = File::create(uuid.to_string())

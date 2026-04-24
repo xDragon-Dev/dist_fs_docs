@@ -9,6 +9,7 @@ mod client_storage_proto {
 use std::path::Path;
 
 use futures_util::StreamExt;
+
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio_util::io::ReaderStream;
@@ -22,10 +23,16 @@ use client_storage_proto::public_storage_client::PublicStorageClient;
 
 use crate::client_storage_proto::FileRequest;
 
+use auth::_generate_jwt;
+use auth::JWTClaims;
+
+use dotenvy::dotenv;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    //Loads .env file and all of its variables
-    upload_file("Filename.pdf").await?;
+    dotenv().ok();
+
+    upload_file("File_name.pdf").await?;
     download_file().await?;
     delete_file().await?;
     Ok(())
@@ -47,15 +54,28 @@ async fn upload_file(path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::E
         },
         Err(_) => UploadChunk { data: None },
     });
+
+    let jwt_claims = JWTClaims {
+        sub: "Juanito".into(),
+        user_role: auth::Role::User,
+        exp: i64::MAX,
+    };
+
+    let jwt = _generate_jwt(jwt_claims).unwrap();
+
     let chunks = tokio_stream::once(header_chunk).chain(content_stream);
-    connection.upload_file(chunks).await?;
+    let mut request = tonic::Request::new(chunks);
+    let headder_map = request.metadata_mut();
+    headder_map.insert("jwt", jwt.parse().unwrap());
+    headder_map.insert("operation_id", "Jsjsjs este si no sirve de nadota".parse().unwrap());
+    connection.upload_file(request).await?;
     Ok(())
 }
 
 async fn download_file() -> Result<(), Box<dyn std::error::Error>> {
     let mut connection = PublicStorageClient::connect("http://[::1]:31416").await?;
     let request = FileRequest {
-        file_id: "e030747e-f2b9-4bd1-a464-1e6c8541dae4".into(),
+        file_id: "79f8dacd-84be-49f8-addd-09977c28666b".into(),
     };
     let response = connection.download_file(request).await?;
     let mut stream = response.into_inner();
@@ -68,9 +88,23 @@ async fn download_file() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn delete_file() -> Result<(), Box<dyn std::error::Error>> {
     let mut connection = PrivateStorageClient::connect("http://[::1]:31416").await?;
-    let request = FileRequest {
-        file_id: "e030747e-f2b9-4bd1-a464-1e6c8541dae4".into(),
+    let file_request = FileRequest {
+        file_id: "79f8dacd-84be-49f8-addd-09977c28666b".into(),
     };
+
+    let mut request = tonic::Request::new(file_request);
+
+    let jwt_claims = JWTClaims {
+        sub: "Juanito".into(),
+        user_role: auth::Role::User,
+        exp: i64::MAX,
+    };
+
+    let jwt = _generate_jwt(jwt_claims).unwrap();
+    
+    let headder_map = request.metadata_mut();
+    headder_map.insert("jwt", jwt.parse().unwrap());
+    headder_map.insert("operation_id", "Jsjsjs este si no sirve de nadota".parse().unwrap());
     connection.delete_file(request).await?;
     Ok(())
 }
