@@ -1,30 +1,21 @@
-mod auth;
 mod checksum;
-mod password_hash;
-mod validation;
 mod client_storage_proto {
     tonic::include_proto!("storage");
 }
 
-use std::path::Path;
-
 use futures_util::StreamExt;
+use std::path::Path;
 
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio_util::io::ReaderStream;
 
-use client_storage_proto::UploadChunk;
-use client_storage_proto::UploadHeader;
-use client_storage_proto::upload_chunk::Data;
-
 use client_storage_proto::private_storage_client::PrivateStorageClient;
 use client_storage_proto::public_storage_client::PublicStorageClient;
+use client_storage_proto::{FileRequest, UploadChunk, UploadHeader, upload_chunk::Data};
 
-use crate::client_storage_proto::FileRequest;
-
-use auth::_generate_jwt;
-use auth::JWTClaims;
+use common::auth::generate_jwt;
+use common::types::{Role, TokenClaims};
 
 use dotenvy::dotenv;
 
@@ -55,19 +46,22 @@ async fn upload_file(path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::E
         Err(_) => UploadChunk { data: None },
     });
 
-    let jwt_claims = JWTClaims {
+    let jwt_claims = TokenClaims {
         sub: "Juanito".into(),
-        user_role: auth::Role::User,
+        user_role: Role::User,
         exp: i64::MAX,
     };
 
-    let jwt = _generate_jwt(jwt_claims).unwrap();
+    let jwt = generate_jwt(jwt_claims).unwrap();
 
     let chunks = tokio_stream::once(header_chunk).chain(content_stream);
     let mut request = tonic::Request::new(chunks);
     let headder_map = request.metadata_mut();
     headder_map.insert("jwt", jwt.parse().unwrap());
-    headder_map.insert("operation_id", "Jsjsjs este si no sirve de nadota".parse().unwrap());
+    headder_map.insert(
+        "operation_id",
+        "Jsjsjs este si no sirve de nadota".parse().unwrap(),
+    );
     connection.upload_file(request).await?;
     Ok(())
 }
@@ -94,91 +88,20 @@ async fn delete_file() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut request = tonic::Request::new(file_request);
 
-    let jwt_claims = JWTClaims {
+    let jwt_claims = TokenClaims {
         sub: "Juanito".into(),
-        user_role: auth::Role::User,
+        user_role: Role::User,
         exp: i64::MAX,
     };
 
-    let jwt = _generate_jwt(jwt_claims).unwrap();
-    
+    let jwt = generate_jwt(jwt_claims).unwrap();
+
     let headder_map = request.metadata_mut();
     headder_map.insert("jwt", jwt.parse().unwrap());
-    headder_map.insert("operation_id", "Jsjsjs este si no sirve de nadota".parse().unwrap());
+    headder_map.insert(
+        "operation_id",
+        "Jsjsjs este si no sirve de nadota".parse().unwrap(),
+    );
     connection.delete_file(request).await?;
     Ok(())
 }
-
-/*
-EJEMPLO BASICO DE CONEXIÓN SERVER
-
-#[tokio::main]
-async fn main() -> Result<(),Box<dyn std::error::Error>>{
-    let addr = "[::1]:31416".parse().unwrap();
-    let svr = StorageServiceServer::new(Storage);
-
-    Server::builder()
-        .add_service(svr)
-        .serve(addr)
-        .await?;
-    Ok(())
-}
-
-EJEMPLO BASICO DE CONEXIÓN CLIENTE
-
-use client_storage_proto::storage_service_client::StorageServiceClient;
-
-#[tokio::main]
-async fn main() -> Result<(),Box<dyn std::error::Error>>{
-    let endpoint = Endpoint::from_static();
-    let mut connection = StorageServiceClient::connect(endpoint).await.unwrap();
-
-    let request = AssignedNode {
-        storage_node_id: "String".into(),
-        ipv4_address: "String".into(),
-        auth_token: "String".into(),
-        file_id: "String".into(),
-    };
-    let response = connection.delete_file(request).await?;
-    println!("respuesta: {:?}",response.into_inner());
-}
-
-#[tokio::main]
-async fn main() -> Result<(),Box<dyn std::error::Error>>{
-    let channel = Endpoint::from_static("[::1]::31416").connect().await?;
-    let mut connection = StorageServiceClient::new(channel);
-
-    let request = AssignedNode {
-        storage_node_id: "String".into(),
-        ipv4_address: "String".into(),
-        auth_token: "String".into(),
-        file_id: "String".into(),
-    };
-    let response = connection.delete_file(request).await?;
-    println!("respuesta: {:?}",response.into_inner());
-}
-
-
-EJEMPLO DE BALANCE DE CARGA
-#[tokio::main]
-async fn main() -> Result<(),Box<dyn std::error::Error>>{
-    let ips = ["[::1]:21416","[::1]:21417"];
-
-    let endpoints = ips.into_iter().map(|ip|Endpoint::from_static(ip));
-    let channel = Channel::balance_list(endpoints);
-
-    let mut connection = StorageServiceClient::new(channel);
-
-    let request = AssignedNode {
-        storage_node_id: "String".into(),
-        ipv4_address: "String".into(),
-        auth_token: "String".into(),
-        file_id: "String".into(),
-    };
-
-    let response = connection.delete_file(request).await?;
-
-    println!("respuesta: {:?}",response.into_inner());
-    Ok(())
-}
-*/

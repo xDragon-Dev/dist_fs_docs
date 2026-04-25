@@ -28,8 +28,7 @@ impl PublicMetadata for Metadata {
             .bind(user_request.password)
             .execute(&self.pg_pool)
             .await
-            .map_err(|e| Status::already_exists(e.to_string()))?;
-
+            .map_err(|e| Status::aborted(e.to_string()))?;
         Ok(Response::new(()))
     }
 

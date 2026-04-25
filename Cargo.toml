@@ -15,6 +15,10 @@ path = "src/storage_server/main.rs"
 name = "client"
 path = "src/client/main.rs"
 
+[lib]
+name = "common"
+path = "src/common/lib.rs"
+
 [dependencies]
 argon2 = "0.5.3"
 chrono = {version = "0.4.44", features = ["serde"]}
@@ -38,6 +42,7 @@ tower = "0.5.3"
 uuid = { version = "1.23.1", features = ["v4","serde"] }
 #Todavía por usar
 validator = {version = "0.20.0",  features = ["derive"]}
+
 
 [build-dependencies]
 tonic-prost-build = "0.14.5"

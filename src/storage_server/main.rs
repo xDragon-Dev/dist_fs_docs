@@ -1,6 +1,6 @@
 mod storage;
-mod middleware;
-use middleware::{MyMiddlewareLayer, auth_jwt};
+
+use common::middleware::{PermisionLayer, auth_jwt};
 use storage::{PrivateStorageServer, PublicStorageServer, Storage};
 
 use dotenvy::dotenv;
@@ -15,8 +15,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let layer = tower::ServiceBuilder::new()
         .layer(InterceptorLayer::new(auth_jwt))
-        .layer(MyMiddlewareLayer);
-    
+        .layer(PermisionLayer);
+
     let pub_svc = PublicStorageServer::new(Storage);
     let priv_svc = layer.named_layer(PrivateStorageServer::new(Storage));
 

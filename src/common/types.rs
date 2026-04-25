@@ -1,12 +1,19 @@
 use chrono::prelude::*;
-use serde::{Deserialize, Serialize};
-use sqlx::prelude::{FromRow, Type};
 use uuid::Uuid;
+use sqlx::prelude::{FromRow, Type};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Type)]
-enum Role {
-    User,
+#[derive(Debug, Deserialize, Serialize, Type, Clone)]
+pub enum Role {
     Admin,
+    User,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct TokenClaims {
+    pub sub: String,
+    pub user_role: Role,
+    pub exp: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
@@ -47,13 +54,3 @@ pub struct ScientificDocument {
     pub publication_date: chrono::DateTime<Utc>,
     pub language: String,
 }
-
-/*
-Verificar que es articulo scientifico si o si, con:
-
-antecedentes
-marco teorico
-antecedentes
-resultados
-conclusiones
-*/
