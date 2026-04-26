@@ -1,7 +1,7 @@
 use chrono::prelude::*;
-use uuid::Uuid;
-use sqlx::prelude::{FromRow, Type};
 use serde::{Deserialize, Serialize};
+use sqlx::prelude::{FromRow, Type};
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize, Type, Clone)]
 pub enum Role {

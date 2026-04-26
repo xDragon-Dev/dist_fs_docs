@@ -20,6 +20,7 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use tonic::{Request, Response, Status, Streaming};
 
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 pub struct Storage;
@@ -32,12 +33,11 @@ impl PublicStorage for Storage {
         &self,
         request: Request<FileRequest>,
     ) -> Result<Response<Self::DownloadFileStream>, Status> {
-        // ! SE DEBE COMPROBAR QUE SE CONECTA AL NODO CORRECTO CON EL "NODE ID" O DESECHAR EL "NODE ID"
         let (xs, xr) = mpsc::channel(10);
-        let inner = request.into_inner();
+        let file_request = request.into_inner();
         tokio::spawn(async move {
             let mut buffer = [0_u8; 4096];
-            match File::open(inner.file_id).await {
+            match File::open(file_request.file_id).await {
                 Ok(mut file) => {
                     while let Ok(n) = file.read(&mut buffer).await {
                         if n == 0 {
@@ -52,7 +52,7 @@ impl PublicStorage for Storage {
                     }
                 }
                 Err(e) => {
-                    let _ = xs.send(Err(Status::not_found(e.to_string()))).await;
+                    let _ = xs.send(Err(Status::not_found(e.kind().to_string()))).await;
                 }
             }
         });
@@ -67,18 +67,6 @@ impl PrivateStorage for Storage {
         request: Request<Streaming<UploadChunk>>,
     ) -> Result<Response<()>, Status> {
         let mut streaming = request.into_inner();
-        let checksum = match streaming.next().await {
-            Some(chunk_result) => match chunk_result?.data {
-                Some(Data::Header(h)) => h.checksum,
-                _ => {
-                    return Err(Status::invalid_argument("File Header must be sent first"));
-                }
-            },
-            None => return Err(Status::invalid_argument("Empty stream")),
-        };
-        // TODO: Verificar que el checksum no existe ya en la base de datos, para no repetir
-        println!("{checksum}");
-
         // TODO: Después enviarle a metadata server el UUID con el que lo guardé o que el metadata server lo genere y yo lo guardo aquí
         let uuid = Uuid::new_v4();
 
@@ -86,14 +74,31 @@ impl PrivateStorage for Storage {
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
+        let mut hasher = Sha256::new();
+
         while let Some(chunk_result) = streaming.next().await {
             match chunk_result?.data {
-                Some(Data::Content(c)) => {
-                    file.write_all(&c)
-                        .await
-                        .map_err(|e| Status::internal(e.to_string()))?;
-                }
-                _ => {
+                Some(data) => match data {
+                    Data::Content(c) => {
+                        file.write_all(&c)
+                            .await
+                            .map_err(|e| Status::internal(e.to_string()))?;
+                        hasher.update(c);
+                    }
+                    Data::Footer(f) => {
+                        let checksum = hasher
+                            .finalize()
+                            .iter()
+                            .map(|bytes| format!("{:02x}", bytes))
+                            .collect::<String>();
+                        if checksum == f.checksum {
+                            break;
+                        } else {
+                            return Err(Status::data_loss("Unrecoverable data loss or corruption"));
+                        }
+                    }
+                },
+                None => {
                     return Err(Status::invalid_argument("Expected file content"));
                 }
             }
@@ -107,13 +112,10 @@ impl PrivateStorage for Storage {
     async fn delete_file(&self, request: Request<FileRequest>) -> Result<Response<()>, Status> {
         // ? "FILE ID" PODRÍA SER INUTIL SI SE TOMA DE DESICIÓN DE DISEÑO DE OBTENER EL FILE ID DESDE EL METADATA SERVER
         // TODO: SE DEBE COMPROBAR QUE SE CONECTA AL NODO CORRECTO CON EL "NODE ID" O DESECHAR EL "NODE ID"
-
         let assigned_node = request.into_inner();
-
         tokio::fs::remove_file(assigned_node.file_id)
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
+            .map_err(|e| Status::not_found(e.kind().to_string()))?;
         Ok(Response::new(()))
     }
 }

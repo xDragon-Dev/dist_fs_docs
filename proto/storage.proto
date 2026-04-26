@@ -4,14 +4,14 @@ package storage;
 import "google/protobuf/empty.proto";
 
 //Datatype that holds some metadata and info about a file upload it ✅
-message UploadHeader {
+message UploadFooter {
   string checksum = 1;
 }
 
-//Datatype that contains binary file content and header ✅
+//Datatype that contains binary file content and footer ✅
 message UploadChunk {
   oneof data {
-    UploadHeader header  = 1;
+    UploadFooter footer  = 1;
     bytes        content = 2;
   }
 }
