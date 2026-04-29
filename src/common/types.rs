@@ -1,12 +1,10 @@
-use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
-use sqlx::prelude::{FromRow, Type};
-use uuid::Uuid;
+use sqlx::Type;
 
-#[derive(Debug, Deserialize, Serialize, Type, Clone)]
+#[derive(Debug, Deserialize, Serialize, Type, Clone, PartialEq)]
 pub enum Role {
-    Admin,
-    User,
+    User = 0,
+    Admin = 1,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -15,6 +13,22 @@ pub struct TokenClaims {
     pub user_role: Role,
     pub exp: i64,
 }
+
+impl core::convert::TryFrom<i32> for Role {
+    type Error = &'static str;
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Role::User),
+            1 => Ok(Role::Admin),
+            _ => Err("Bad enum conversion"),
+        }
+    }
+}
+
+/*
+use chrono::prelude::*;
+use sqlx::{FromRow, Type};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct User {
@@ -54,3 +68,4 @@ pub struct ScientificDocument {
     pub publication_date: chrono::DateTime<Utc>,
     pub language: String,
 }
+*/

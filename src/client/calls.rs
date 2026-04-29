@@ -27,7 +27,8 @@ async fn _upload_file(
     let mut connection = PrivateStorageClient::connect("http://[::1]:31416").await?;
     let (xs, xr) = mpsc::channel(10);
 
-    // ! ⚠️ Este es de las pocas partes del proyecto que puede TEORICAMENTE causar un PANIC!
+    // ! ⚠️ Este es de las pocas partes del proyecto que puede TEORICAMENTE causar un PANIC! por los unwrap
+    // ! 💀 El hilo podría no vivir lo suficiente como para completar su proposito (🚧🚧🚧 IN TEST 🚧🚧🚧)
     tokio::spawn(async move {
         let mut buffer = [0_u8; 65536];
         let mut hasher = Sha256::new();

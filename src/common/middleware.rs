@@ -2,7 +2,7 @@ mod client_storage_proto {
     tonic::include_proto!("storage");
 }
 
-use super::auth::verificate_jwt;
+use super::auth::verify_jwt;
 use super::types::TokenClaims;
 use std::{
     pin::Pin,
@@ -19,7 +19,7 @@ pub fn auth_jwt(mut req: Request<()>) -> Result<Request<()>, Status> {
 
     match header_jwt {
         Some(jwt) => {
-            let claims = verificate_jwt::<TokenClaims>(jwt)
+            let claims = verify_jwt::<TokenClaims>(jwt)
                 .map_err(|e| Status::unauthenticated(e.to_string()))?;
             req.extensions_mut().insert(claims);
         }

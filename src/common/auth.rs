@@ -8,15 +8,15 @@ use argon2::{
 
 use std::env;
 
-pub fn verificate_jwt<T: serde::de::DeserializeOwned>(
+pub fn verify_jwt<T: serde::de::DeserializeOwned>(
     jwt: impl AsRef<[u8]>,
 ) -> Result<T, jsonwebtoken::errors::Error> {
     let secret = env::var("SECRET").expect("Enviroment variable \"SECRET\" must be set");
     let decoding_key = DecodingKey::from_secret(secret.as_bytes());
     let validation = Validation::new(Algorithm::HS256);
 
-    let jwt_claims = decode::<T>(jwt, &decoding_key, &validation)?;
-    Ok(jwt_claims.claims)
+    let token_data = decode::<T>(jwt, &decoding_key, &validation)?;
+    Ok(token_data.claims)
 }
 
 pub fn generate_jwt(

@@ -27,7 +27,6 @@ futures-util = "0.3.32"
 http = "1.4.0"
 jsonwebtoken = {version = "10.3.0", features = ["rust_crypto"]}
 prost = "0.14.3"
-prost-types = "0.14.3"
 #Todavía por usar
 regex = "1.12.3"
 serde = { version = "1.0.228", features = ["derive"] }

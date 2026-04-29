@@ -28,7 +28,6 @@ pub struct Storage;
 #[tonic::async_trait]
 impl PublicStorage for Storage {
     type DownloadFileStream = ReceiverStream<Result<DownloadResponse, Status>>;
-
     async fn download_file(
         &self,
         request: Request<FileRequest>,
@@ -36,7 +35,7 @@ impl PublicStorage for Storage {
         let (xs, xr) = mpsc::channel(10);
         let file_request = request.into_inner();
         tokio::spawn(async move {
-            let mut buffer = [0_u8; 4096];
+            let mut buffer = [0_u8; 65536];
             match File::open(file_request.file_id).await {
                 Ok(mut file) => {
                     while let Ok(n) = file.read(&mut buffer).await {
@@ -52,7 +51,7 @@ impl PublicStorage for Storage {
                     }
                 }
                 Err(e) => {
-                    let _ = xs.send(Err(Status::not_found(e.kind().to_string()))).await;
+                    let _ = xs.send(Err(Status::not_found(e.to_string()))).await;
                 }
             }
         });
@@ -99,13 +98,10 @@ impl PrivateStorage for Storage {
                     }
                 },
                 None => {
-                    return Err(Status::invalid_argument("Expected file content"));
+                    return Err(Status::invalid_argument("Empty stream"));
                 }
             }
         }
-
-        // ! Todavía requiero comprobar el checksum del archivo para comprobar que todo estaba bien
-
         Ok(Response::new(()))
     }
 
