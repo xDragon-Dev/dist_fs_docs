@@ -3,7 +3,7 @@ mod client_storage_proto {
 }
 
 use super::auth::verify_jwt;
-use super::types::TokenClaims;
+use super::types::jwt_types::TokenClaims;
 use std::{
     pin::Pin,
     task::{Context, Poll},

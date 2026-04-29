@@ -8,7 +8,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     tonic_prost_build::configure()
-        .add_layer(sqlx_layer)
         .add_layer(validator_layer)
         .compile_protos(&protos, &["proto"])
         .unwrap();
@@ -16,13 +15,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 use tonic_prost_build::Builder;
-
-fn sqlx_layer(builder: Builder) -> Builder {
-    builder
-        .message_attribute("Topic", "#[derive(sqlx::FromRow)]")
-        .message_attribute("SubTopic", "#[derive(sqlx::FromRow)]")
-        .enum_attribute("SearchKind", "#[derive(sqlx::Type)]")
-}
 
 fn validator_layer(builder: Builder) -> Builder {
     builder
@@ -38,7 +30,8 @@ fn validator_layer(builder: Builder) -> Builder {
             custom(function = "common::valid::has_lowercase"),
             custom(function = "common::valid::has_uppercase"),
             custom(function = "common::valid::has_numeric"),
-            custom(function = "common::valid::has_special")
+            custom(function = "common::valid::has_special"),
+            custom(function = "common::valid::has_valid_chars")
         )]"#,
         )
         .field_attribute(

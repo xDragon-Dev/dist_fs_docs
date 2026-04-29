@@ -17,7 +17,7 @@ use client_storage_proto::public_storage_client::PublicStorageClient;
 use client_storage_proto::{FileRequest, UploadChunk, UploadFooter, upload_chunk::Data};
 
 use common::auth::generate_jwt;
-use common::types::{Role, TokenClaims};
+use common::types::jwt_types::*;
 
 use sha2::{Digest, Sha256};
 
@@ -60,7 +60,7 @@ async fn _upload_file(
 
     let jwt_claims = TokenClaims {
         sub: "Juanito".into(),
-        user_role: Role::User,
+        user_role: TokenRole::User,
         exp: i64::MAX,
     };
     let header = HashMap::from([
@@ -103,7 +103,7 @@ async fn _delete_file() -> Result<(), Box<dyn std::error::Error>> {
 
     let jwt_claims = TokenClaims {
         sub: "Juanito".into(),
-        user_role: Role::User,
+        user_role: TokenRole::User,
         exp: i64::MAX,
     };
 

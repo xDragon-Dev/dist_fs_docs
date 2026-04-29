@@ -1,29 +1,5 @@
-use serde::{Deserialize, Serialize};
-use sqlx::Type;
-
-#[derive(Debug, Deserialize, Serialize, Type, Clone, PartialEq)]
-pub enum Role {
-    User = 0,
-    Admin = 1,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct TokenClaims {
-    pub sub: String,
-    pub user_role: Role,
-    pub exp: i64,
-}
-
-impl core::convert::TryFrom<i32> for Role {
-    type Error = &'static str;
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(Role::User),
-            1 => Ok(Role::Admin),
-            _ => Err("Bad enum conversion"),
-        }
-    }
-}
+pub mod jwt_types;
+pub mod sql_types;
 
 /*
 use chrono::prelude::*;

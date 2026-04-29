@@ -1,18 +1,35 @@
-mod client_metadata_proto {
+mod metadata_proto {
     tonic::include_proto!("metadata");
 }
 
-pub use client_metadata_proto::private_metadata_server::PrivateMetadataServer;
-pub use client_metadata_proto::public_metadata_server::PublicMetadataServer;
+use std::str::FromStr;
 
-use client_metadata_proto::private_metadata_server::PrivateMetadata;
-use client_metadata_proto::public_metadata_server::PublicMetadata;
+pub use metadata_proto::private_metadata_server::PrivateMetadataServer;
+pub use metadata_proto::public_metadata_server::PublicMetadataServer;
 
-use client_metadata_proto::*;
+use metadata_proto::private_metadata_server::PrivateMetadata;
+use metadata_proto::public_metadata_server::PublicMetadata;
+
+use metadata_proto::{
+    AssignedNode,
+    CreateUserRequest,
+    DeleteUserRequest,
+    LogInRequest,
+    NodeRequest,
+    NodeUploadRequest,
+    ScientificDocument,
+    ScientificDocumentRequest,
+    SearchRequest,
+    //SearchResult,
+    SearchResults,
+    SubTopics,
+    Topics,
+};
+
 use tonic::{Request, Response, Status};
 
 use common::auth::*;
-use common::types::TokenClaims;
+use common::types::{jwt_types::*, sql_types::*};
 
 use chrono::prelude::*;
 use sqlx::{Pool, Postgres};
@@ -28,13 +45,12 @@ impl PublicMetadata for Metadata {
         &self,
         request: Request<CreateUserRequest>,
     ) -> Result<Response<()>, Status> {
-        use common::types::Role;
         request
             .get_ref()
             .validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        let desired_role = Role::try_from(request.get_ref().user_role).map_err(|_| {
+        let desired_role = TokenRole::try_from(request.get_ref().user_role).map_err(|_| {
             Status::invalid_argument(format!(
                 "Invalid role value {}",
                 request.get_ref().user_role
@@ -57,8 +73,8 @@ impl PublicMetadata for Metadata {
             None => None,
         };
 
-        let role = if (token_role == None || token_role == Some(Role::User))
-            && desired_role == Role::Admin
+        let role = if (token_role == None || token_role == Some(TokenRole::User))
+            && desired_role == TokenRole::Admin
         {
             return Err(Status::permission_denied(
                 "Insufficient permissions to do this operation",
@@ -85,7 +101,7 @@ impl PublicMetadata for Metadata {
     async fn log_in(&self, request: Request<LogInRequest>) -> Result<Response<String>, Status> {
         let request = request.into_inner();
 
-        let (role, password_hash): (common::types::Role, String) =
+        let (role, password_hash): (TokenRole, String) =
             sqlx::query_as("SELECT user_role, password_hash FROM users WHERE user_name = $1")
                 .bind(&request.user_name)
                 .fetch_one(&self.pg_pool)
@@ -120,21 +136,25 @@ impl PublicMetadata for Metadata {
     }
 
     async fn get_topics(&self, _request: Request<()>) -> Result<Response<Topics>, Status> {
-        let topics: Vec<Topic> = sqlx::query_as("SELECT name FROM topics")
+        let topic_rows: Vec<String> = sqlx::query_scalar("SELECT name FROM topics")
             .fetch_all(&self.pg_pool)
             .await
             .map_err(|e| Status::aborted(e.to_string()))?;
-        let topics = Topics { content: topics };
+
+        let topics = Topics {
+            content: topic_rows
+        };
         Ok(Response::new(topics))
     }
 
     async fn get_sub_topics(&self, _request: Request<()>) -> Result<Response<SubTopics>, Status> {
-        let sub_topics: Vec<SubTopic> = sqlx::query_as("SELECT name FROM sub_topics")
+        let sub_topic_rows: Vec<String> = sqlx::query_scalar("SELECT name FROM sub_topics")
             .fetch_all(&self.pg_pool)
             .await
             .map_err(|e| Status::aborted(e.to_string()))?;
+
         let sub_topics = SubTopics {
-            content: sub_topics,
+            content: sub_topic_rows
         };
         Ok(Response::new(sub_topics))
     }
@@ -144,48 +164,89 @@ impl PublicMetadata for Metadata {
         request: Request<ScientificDocumentRequest>,
     ) -> Result<Response<ScientificDocument>, Status> {
         let request = request.into_inner();
+        let id = uuid::Uuid::from_str(&request.id)
+            .map_err(|_| Status::invalid_argument("Invalid id format"))?;
+        let scientific_document_row: ScientificDocumentRow = sqlx::query_as(
+            "
+            SELECT 
+                d.posted_by, 
+                d.title, 
+                d.authors, 
+                d.abstract,
+                d.keywords,
+                COALESCE((
+                    SELECT jsonb_agg(t.name)
+                    FROM topics t
+                    JOIN document_topics dt ON dt.topic_id = t.id
+                    WHERE dt.document_id = d.id
+                ), '[]') as topics,
+                COALESCE((
+                    SELECT jsonb_agg(st.name)
+                    FROM sub_topics st
+                    JOIN document_sub_topics dst ON dst.sub_topic_id = st.id
+                    WHERE dst.document_id = d.id
+                ), '[]') as sub_topics,
+                d.document_type,
+                d.publication_date, 
+                d.language
+            FROM scientific_documents d
+            WHERE d.id = $1;
+        ",
+        )
+        .bind(id)
+        .fetch_one(&self.pg_pool)
+        .await
+        .map_err(|e| Status::aborted(e.to_string()))?;
 
-        struct DocumentRow {
-            pub posted_by: String,
-            pub title: String,
-            pub authors: Vec<String>,
-            pub r#abstract: String,
-            pub keywords: Vec<String>,
-            pub document_type: i32,
-            pub publication_date: i64,
-            pub language: String,
-        }
-
-        
-        /*
-        let file: ScientificDocument = sqlx::query_as("").bind(request.id)
-            .fetch_one(&self.pg_pool)
-            .await
-            .map_err(|e| Status::aborted(e.to_string()))?;
-        */
-
-        
-        Err(Status::aborted("aborted"))
+        let scientific_document = ScientificDocument {
+            posted_by: scientific_document_row.posted_by,
+            title: scientific_document_row.title,
+            authors: scientific_document_row.authors,
+            r#abstract: scientific_document_row.r#abstract,
+            keywords: scientific_document_row.keywords,
+            topics: scientific_document_row.topics.0,
+            sub_topics: scientific_document_row.sub_topics.0,
+            document_type: scientific_document_row.document_type.into(),
+            publication_date: scientific_document_row.publication_date.timestamp(),
+            language: scientific_document_row.language,
+        };
+        Ok(Response::new(scientific_document))
     }
-
-    /*
-        CREATE TABLE scientific_documents (
-        id UUID PRIMARY KEY, --DEFAULT gen_random_uuid()
-        posted_by TEXT NOT NULL REFERENCES users(user_name),
-        title TEXT NOT NULL,
-        authors TEXT[] NOT NULL,
-        abstract TEXT NOT NULL,
-        keywords TEXT[] NOT NULL,
-        document_type document_type NOT NULL,
-        publication_date TIMESTAMPTZ NOT NULL, --DEFAULT CURRENT_TIMESTAMP
-        language TEXT NOT NULL
-        );
-     */
 
     async fn search_documents(
         &self,
         request: Request<SearchRequest>,
     ) -> Result<Response<SearchResults>, Status> {
+        /*
+
+        pub enum SearchKind {
+            Title,
+            Publisher,
+            Author,
+            Keywod
+        }
+
+        pub struct SearchRequest {
+            pub content: String,
+            pub search_kind: SearchKind,
+            pub topics: Vec<String>,
+            pub sub_topics: Vec<String>,
+            pub document_types: Vec<i32>,
+            pub start_date: i64,
+            pub end_date: i64,
+            pub languages: Vec String>,
+        }
+
+        pub struct SearchResult {
+            pub id: String,
+            pub posted_by: String,
+            pub title: String,
+            pub document_type: i32,
+            pub publication_date: i64,
+            pub language: String,
+        }
+        */
+
         Err(Status::aborted("aborted"))
     }
 }
@@ -213,19 +274,19 @@ impl PrivateMetadata for Metadata {
         Err(Status::aborted("aborted"))
     }
 
-    async fn create_topic(&self, request: Request<Topic>) -> Result<Response<()>, Status> {
+    async fn create_topic(&self, request: Request<String>) -> Result<Response<()>, Status> {
         Err(Status::aborted("aborted"))
     }
 
-    async fn delete_topic(&self, request: Request<Topic>) -> Result<Response<()>, Status> {
+    async fn delete_topic(&self, request: Request<String>) -> Result<Response<()>, Status> {
         Err(Status::aborted("aborted"))
     }
 
-    async fn create_sub_topic(&self, request: Request<SubTopic>) -> Result<Response<()>, Status> {
+    async fn create_sub_topic(&self, request: Request<String>) -> Result<Response<()>, Status> {
         Err(Status::aborted("aborted"))
     }
 
-    async fn delete_sub_topic(&self, request: Request<SubTopic>) -> Result<Response<()>, Status> {
+    async fn delete_sub_topic(&self, request: Request<String>) -> Result<Response<()>, Status> {
         Err(Status::aborted("aborted"))
     }
 }

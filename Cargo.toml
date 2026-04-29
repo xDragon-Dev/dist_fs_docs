@@ -29,9 +29,9 @@ jsonwebtoken = {version = "10.3.0", features = ["rust_crypto"]}
 prost = "0.14.3"
 #Todavía por usar
 regex = "1.12.3"
-serde = { version = "1.0.228", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive" ] }
 sha2 = "0.11.0"
-sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-ring-webpki", "postgres", "derive" ] }
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-ring-webpki", "postgres", "derive", "uuid", "chrono"] }
 tonic = "0.14.5"
 tonic-prost = "0.14.5"
 tokio = { version = "1.52.1", features = ["full"] }
@@ -41,7 +41,5 @@ tower = "0.5.3"
 uuid = { version = "1.23.1", features = ["v4","serde"] }
 #Todavía por usar
 validator = {version = "0.20.0",  features = ["derive"]}
-
-
 [build-dependencies]
 tonic-prost-build = "0.14.5"

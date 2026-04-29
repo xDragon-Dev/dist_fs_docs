@@ -48,24 +48,14 @@ message AssignedNode {
   string operation_id = 2; // ID temporal para que el Storage confíe en el cliente
 }
 
-//Datatype that holds a topic name
-message Topic {
-  string name = 1;
-}
-
-//Datatype that holds a subtopic name
-message SubTopic {
-  string name = 1;
-}
-
 //List of various topics
 message Topics {
-  repeated Topic content = 1;
+  repeated string content = 1;
 }
 
 //List of various subtopics
 message SubTopics {
-  repeated SubTopic content = 1;
+  repeated string content = 1;
 }
 
 // Tipo de documento cientifico
@@ -86,16 +76,16 @@ message ScientificDocumentRequest {
 
 // Representación del documento científico
 message ScientificDocument {
-  string            posted_by        = 1;
-  string            title            = 2;
-  repeated string   authors          = 3;
-  string            abstract         = 4;
-  repeated string   keywords         = 5;
-  repeated Topic    topics           = 6;
-  repeated SubTopic sub_topics       = 7;
-  DocumentType      document_type    = 8;
-  int64             publication_date = 9;
-  string            language         = 10;
+  string          posted_by        = 1;
+  string          title            = 2;
+  repeated string authors          = 3;
+  string          abstract         = 4;
+  repeated string keywords         = 5;
+  repeated string topics           = 6;
+  repeated string sub_topics       = 7;
+  DocumentType    document_type    = 8;
+  int64           publication_date = 9;
+  string          language         = 10;
 }
 
 //kinf of content in a search request
@@ -110,8 +100,8 @@ enum SearchKind {
 message SearchRequest {
   string                content        = 1;
   SearchKind            search_kind    = 2;
-  repeated Topic        topics         = 3;
-  repeated SubTopic     sub_topics     = 4;
+  repeated string       topics         = 3;
+  repeated string       sub_topics     = 4;
   repeated DocumentType document_types = 5;
   int64                 start_date     = 6;
   int64                 end_date       = 7;
@@ -165,12 +155,12 @@ service PrivateMetadata {
   rpc GetDeleteNode(NodeRequest) returns (AssignedNode);
 
   //Creates a topic inside the metadata
-  rpc CreateTopic(Topic) returns (google.protobuf.Empty);
+  rpc CreateTopic(google.protobuf.StringValue) returns (google.protobuf.Empty);
   //Deletes a topic inside the metadata
-  rpc DeleteTopic(Topic) returns (google.protobuf.Empty);
+  rpc DeleteTopic(google.protobuf.StringValue) returns (google.protobuf.Empty);
 
   //Creates a subtopic inside the metadata
-  rpc CreateSubTopic(SubTopic) returns (google.protobuf.Empty);
+  rpc CreateSubTopic(google.protobuf.StringValue) returns (google.protobuf.Empty);
   //Deletes a subtopic inside the metadata
-  rpc DeleteSubTopic(SubTopic) returns (google.protobuf.Empty);
+  rpc DeleteSubTopic(google.protobuf.StringValue) returns (google.protobuf.Empty);
 }

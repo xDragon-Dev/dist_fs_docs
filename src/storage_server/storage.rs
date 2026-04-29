@@ -1,15 +1,15 @@
-mod client_storage_proto {
+mod storage_proto {
     tonic::include_proto!("storage");
 }
 
-pub use client_storage_proto::private_storage_server::PrivateStorageServer;
-pub use client_storage_proto::public_storage_server::PublicStorageServer;
+pub use storage_proto::private_storage_server::PrivateStorageServer;
+pub use storage_proto::public_storage_server::PublicStorageServer;
 
-use client_storage_proto::private_storage_server::PrivateStorage;
-use client_storage_proto::public_storage_server::PublicStorage;
+use storage_proto::private_storage_server::PrivateStorage;
+use storage_proto::public_storage_server::PublicStorage;
 
-use client_storage_proto::upload_chunk::Data;
-use client_storage_proto::{DownloadResponse, FileRequest, UploadChunk};
+use storage_proto::upload_chunk::Data;
+use storage_proto::{DownloadResponse, FileRequest, UploadChunk};
 
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
