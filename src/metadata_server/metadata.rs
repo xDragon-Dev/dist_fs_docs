@@ -142,7 +142,7 @@ impl PublicMetadata for Metadata {
             .map_err(|e| Status::aborted(e.to_string()))?;
 
         let topics = Topics {
-            content: topic_rows
+            content: topic_rows,
         };
         Ok(Response::new(topics))
     }
@@ -154,7 +154,7 @@ impl PublicMetadata for Metadata {
             .map_err(|e| Status::aborted(e.to_string()))?;
 
         let sub_topics = SubTopics {
-            content: sub_topic_rows
+            content: sub_topic_rows,
         };
         Ok(Response::new(sub_topics))
     }
@@ -257,7 +257,24 @@ impl PrivateMetadata for Metadata {
         &self,
         request: Request<DeleteUserRequest>,
     ) -> Result<Response<()>, Status> {
-        Err(Status::aborted("aborted"))
+        let token_claims = request
+            .extensions()
+            .get::<TokenClaims>()
+            .ok_or(Status::internal(
+                r#"authentication failure: Missing a required request extension "jwt_claims"#,
+            ))?;
+        if !(token_claims.sub == request.get_ref().user_name
+            || token_claims.user_role == TokenRole::Admin)
+        {
+            return Err(Status::permission_denied(
+                "Insufficient permissions to do this operation",
+            ));
+        }
+        sqlx::query("DELETE FROM users WHERE id = 5;")
+            .execute(&self.pg_pool)
+            .await
+            .map_err(|e| Status::aborted(e.to_string()))?;
+        Ok(Response::new(()))
     }
 
     async fn get_upload_node(
@@ -274,8 +291,14 @@ impl PrivateMetadata for Metadata {
         Err(Status::aborted("aborted"))
     }
 
+    // !SOLO REQUIERE UN STRING
     async fn create_topic(&self, request: Request<String>) -> Result<Response<()>, Status> {
-        Err(Status::aborted("aborted"))
+        sqlx::query("INSERT INTO topics (name) VALUES $1")
+            .bind(request.get_ref())
+            .execute(&self.pg_pool)
+            .await
+            .map_err(|e| Status::aborted(e.to_string()))?;
+        Ok(Response::new(()))
     }
 
     async fn delete_topic(&self, request: Request<String>) -> Result<Response<()>, Status> {

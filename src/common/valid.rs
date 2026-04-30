@@ -49,10 +49,11 @@ pub fn has_special(string: &str) -> Result<(), validator::ValidationError> {
 }
 
 pub fn has_valid_chars(string: &str) -> Result<(), validator::ValidationError> {
-    let error = validator::ValidationError::new("invalid chars")
-        .with_message("Field must contain alphanumeric characters and any of following: !@#$%^&*_-+=".into());
+    let error = validator::ValidationError::new("invalid chars").with_message(
+        "Field must contain alphanumeric characters and any of following: !@#$%^&*_-+=".into(),
+    );
     for c in string.chars() {
-        if !c.is_alphanumeric() && !"!@#$%^&*_-+=".contains(c){
+        if !c.is_alphanumeric() && !"!@#$%^&*_-+=".contains(c) {
             return Err(error);
         }
     }

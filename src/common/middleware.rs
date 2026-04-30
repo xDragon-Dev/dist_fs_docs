@@ -87,7 +87,7 @@ where
                 Some(jwt_claims) => jwt_claims,
                 None => {
                     let status = tonic::Status::internal(
-                        r#"Missing a required request extension "jwt_claims", authentication middleware might not be working"#,
+                        r#"Authentication failure: Missing a required request extension "jwt_claims"#,
                     );
                     return Ok(status.into_http());
                 }
