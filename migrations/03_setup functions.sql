@@ -1,3 +1,4 @@
+/*
 CREATE OR REPLACE FUNCTION validate_subtopic_hierarchy()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -19,3 +20,5 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_validate_subtopic
 BEFORE INSERT OR UPDATE ON document_sub_topics
 FOR EACH ROW EXECUTE FUNCTION validate_subtopic_hierarchy();
+
+*/

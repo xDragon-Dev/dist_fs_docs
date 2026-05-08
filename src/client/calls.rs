@@ -1,5 +1,9 @@
-mod client_storage_proto {
+mod storage_proto {
     tonic::include_proto!("storage");
+}
+
+mod metadata_proto {
+    tonic::include_proto!("metadata");
 }
 
 use std::collections::HashMap;
@@ -12,11 +16,15 @@ use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::ReceiverStream;
 
-use client_storage_proto::private_storage_client::PrivateStorageClient;
-use client_storage_proto::public_storage_client::PublicStorageClient;
-use client_storage_proto::{FileRequest, UploadChunk, UploadFooter, upload_chunk::Data};
+use metadata_proto::private_metadata_client::PrivateMetadataClient;
+use storage_proto::storage_service_client::StorageServiceClient;
+
+use metadata_proto::*;
+use storage_proto::upload_chunk::Data;
+use storage_proto::*;
 
 use common::auth::generate_jwt;
+use common::types::jwt_types;
 use common::types::jwt_types::*;
 
 use sha2::{Digest, Sha256};
@@ -24,44 +32,40 @@ use sha2::{Digest, Sha256};
 async fn _upload_file(
     path: impl AsRef<Path> + 'static + Send,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut connection = PrivateStorageClient::connect("http://[::1]:31416").await?;
+    let mut connection = StorageServiceClient::connect("http://[::1]:31416").await?;
     let (xs, xr) = mpsc::channel(10);
 
-    // ! ⚠️ Este es de las pocas partes del proyecto que puede TEORICAMENTE causar un PANIC! por los unwrap
-    // ! 💀 El hilo podría no vivir lo suficiente como para completar su proposito (🚧🚧🚧 IN TEST 🚧🚧🚧)
-    tokio::spawn(async move {
-        let mut buffer = [0_u8; 65536];
-        let mut hasher = Sha256::new();
-        if let Ok(mut file) = File::open(path).await {
-            while let Ok(n) = file.read(&mut buffer).await {
-                if n == 0 {
-                    break;
-                }
-                xs.send(UploadChunk {
-                    data: Some(Data::Content(buffer.to_vec())),
-                })
-                .await
-                .unwrap();
-                hasher.update(buffer);
+    let mut buffer = [0_u8; 65536];
+    let mut hasher = Sha256::new();
+    if let Ok(mut file) = File::open(path).await {
+        while let Ok(n) = file.read(&mut buffer).await {
+            if n == 0 {
+                break;
             }
-            let checksum = hasher
-                .finalize()
-                .iter()
-                .map(|bytes| format!("{:02x}", bytes))
-                .collect::<String>();
             xs.send(UploadChunk {
-                data: Some(Data::Footer(UploadFooter { checksum })),
+                data: Some(Data::Content(buffer.to_vec())),
             })
-            .await
-            .unwrap();
+            .await?;
+            hasher.update(buffer);
         }
-    });
+        let checksum = hasher
+            .finalize()
+            .iter()
+            .map(|bytes| format!("{:02x}", bytes))
+            .collect::<String>();
+        xs.send(UploadChunk {
+            data: Some(Data::Footer(UploadFooter { checksum })),
+        })
+        .await?;
+    }
+
     let mut request = tonic::Request::new(ReceiverStream::new(xr));
 
     let jwt_claims = TokenClaims {
         sub: "Juanito".into(),
-        user_role: TokenRole::User,
+        user_role: jwt_types::Role::User,
         exp: i64::MAX,
+        iat: i64::MIN,
     };
     let header = HashMap::from([
         // !Posible crasheo teorico
@@ -80,8 +84,8 @@ async fn _upload_file(
 }
 
 async fn _download_file() -> Result<(), Box<dyn std::error::Error>> {
-    let mut connection = PublicStorageClient::connect("http://[::1]:31416").await?;
-    let request = FileRequest {
+    let mut connection = StorageServiceClient::connect("http://[::1]:31416").await?;
+    let request = DownloadFileRequest {
         file_id: "79f8dacd-84be-49f8-addd-09977c28666b".into(),
     };
     let response = connection.download_file(request).await?;
@@ -94,17 +98,18 @@ async fn _download_file() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn _delete_file() -> Result<(), Box<dyn std::error::Error>> {
-    let mut connection = PrivateStorageClient::connect("http://[::1]:31416").await?;
-    let file_request = FileRequest {
-        file_id: "79f8dacd-84be-49f8-addd-09977c28666b".into(),
+    let mut connection = PrivateMetadataClient::connect("http://[::1]:31416").await?;
+    let file_request = DeleteDocumentRequest {
+        document_id: "79f8dacd-84be-49f8-addd-09977c28666b".into(),
     };
 
     let mut request = tonic::Request::new(file_request);
 
     let jwt_claims = TokenClaims {
         sub: "Juanito".into(),
-        user_role: TokenRole::User,
+        user_role: jwt_types::Role::User,
         exp: i64::MAX,
+        iat: i64::MIN,
     };
 
     let header = HashMap::from([
@@ -122,6 +127,6 @@ async fn _delete_file() -> Result<(), Box<dyn std::error::Error>> {
         // !Posible crasheo teorico
         metadata.insert(*key, val.parse().unwrap());
     });
-    connection.delete_file(request).await?;
+    connection.delete_document(request).await?;
     Ok(())
 }

@@ -22,27 +22,14 @@ message DownloadResponse {
 }
 
 //Request to acces or indicate action related to a file
-message FileRequest {
+message DownloadFileRequest {
   string file_id = 1;
 }
 
-//-----SERVICE RELATED TO ALL PUBLIC OPERATIONS BETWEEN CLIENTS AND STORAGE SERVERS-----
-service PublicStorage{
+//-----SERVICE RELATED TO ALL OPERATIONS BETWEEN CLIENTS AND STORAGE SERVERS-----
+service StorageService{
   //Returns all bytes of a file
-  rpc DownloadFile(FileRequest) returns (stream DownloadResponse);
-}
-
-//-----SERVICE RELATED TO ALL PRIVATE FILE OPERATIONS BETWEEN CLIENTS AND STORAGE SERVERS-----
-service PrivateStorage{
+  rpc DownloadFile(DownloadFileRequest) returns (stream DownloadResponse);
   //Obtains all bytes of your file and stores it
   rpc UploadFile(stream UploadChunk) returns (google.protobuf.Empty);
-  //Deletes a file from a storage server
-  rpc DeleteFile(FileRequest) returns (google.protobuf.Empty);
 }
-
-/*
- ! NOTAS DE DISEÑO:
- !No sé si existan algoritmos para encontrar archivos rápidamente
- !No sé si existan metodologías de almacenamiento (jerarquías de carpetas y archivos, etc)
- !Los archivos deberían estar encriptados (creo) pero cómo?
- */

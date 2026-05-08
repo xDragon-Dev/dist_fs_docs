@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
-use sqlx::Type;
 
-#[derive(Debug, Deserialize, Serialize, Type, Clone, PartialEq)]
-#[sqlx(type_name = "role")]
-pub enum TokenRole {
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub enum Role {
     User = 0,
     Admin = 1,
 }
@@ -11,16 +9,17 @@ pub enum TokenRole {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TokenClaims {
     pub sub: String,
-    pub user_role: TokenRole,
+    pub user_role: Role,
     pub exp: i64,
+    pub iat: i64,
 }
 
-impl core::convert::TryFrom<i32> for TokenRole {
+impl core::convert::TryFrom<i32> for Role {
     type Error = &'static str;
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(TokenRole::User),
-            1 => Ok(TokenRole::Admin),
+            0 => Ok(Role::User),
+            1 => Ok(Role::Admin),
             _ => Err("Bad enum conversion"),
         }
     }

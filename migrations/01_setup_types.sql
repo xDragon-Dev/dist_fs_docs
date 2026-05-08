@@ -14,3 +14,8 @@ CREATE TYPE status AS ENUM (
     'Active', 
     'Offline'
 );
+
+CREATE TYPE scope AS ENUM (
+    'Local',
+    'Global'
+)

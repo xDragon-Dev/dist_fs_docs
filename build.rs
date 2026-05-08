@@ -19,9 +19,15 @@ use tonic_prost_build::Builder;
 fn validator_layer(builder: Builder) -> Builder {
     builder
         .message_attribute("CreateUserRequest", "#[derive(validator::Validate)]")
+        .message_attribute("ChangePasswordRequest", "#[derive(validator::Validate)]")
+        .message_attribute("ChangeUserNameRequest", "#[derive(validator::Validate)]")
         .field_attribute(
             "CreateUserRequest.user_name",
-            r#"#[validate(regex(path = *common::valid::USER_REGEX, message = "Invalid username"))]"#,
+            r#"#[validate(regex(path = *common::valid::USER_REGEX, message = "Invalid username"))]"#
+        )
+        .field_attribute(
+            "ChangeUserNameRequest.new_user_name", 
+            r#"#[validate(regex(path = *common::valid::USER_REGEX, message = "Invalid username"))]"#
         )
         .field_attribute(
             "CreateUserRequest.password",
@@ -37,6 +43,20 @@ fn validator_layer(builder: Builder) -> Builder {
         .field_attribute(
             "CreateUserRequest.confirm_password",
             r#"#[validate(must_match(other = "password", message = "Mismatched passwords"))]"#,
+        )
+        .field_attribute(
+            "ChangePasswordRequest.new_password", 
+            r#"#[validate(
+            length(min = 8, message = "Field must be at least 8 characters long"),
+            custom(function = "common::valid::has_lowercase"),
+            custom(function = "common::valid::has_uppercase"),
+            custom(function = "common::valid::has_numeric"),
+            custom(function = "common::valid::has_special"),
+            custom(function = "common::valid::has_valid_chars")
+        )]"#)
+        .field_attribute(
+            "ChangePasswordRequest.confirm_new_password",
+            r#"#[validate(must_match(other = "new_password", message = "Mismatched passwords"))]"#,
         )
 }
 

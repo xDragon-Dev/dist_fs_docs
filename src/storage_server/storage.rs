@@ -2,14 +2,19 @@ mod storage_proto {
     tonic::include_proto!("storage");
 }
 
-pub use storage_proto::private_storage_server::PrivateStorageServer;
-pub use storage_proto::public_storage_server::PublicStorageServer;
+mod storage_metadata_proto {
+    tonic::include_proto!("storage_metadata");
+}
 
-use storage_proto::private_storage_server::PrivateStorage;
-use storage_proto::public_storage_server::PublicStorage;
+pub use storage_metadata_proto::metadata_instructions_server::MetadataInstructionsServer;
+pub use storage_proto::storage_service_server::StorageServiceServer;
 
+use storage_metadata_proto::metadata_instructions_server::MetadataInstructions;
+use storage_proto::storage_service_server::StorageService;
+
+use storage_metadata_proto::*;
 use storage_proto::upload_chunk::Data;
-use storage_proto::{DownloadResponse, FileRequest, UploadChunk};
+use storage_proto::*;
 
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -26,11 +31,11 @@ use uuid::Uuid;
 pub struct Storage;
 
 #[tonic::async_trait]
-impl PublicStorage for Storage {
+impl StorageService for Storage {
     type DownloadFileStream = ReceiverStream<Result<DownloadResponse, Status>>;
     async fn download_file(
         &self,
-        request: Request<FileRequest>,
+        request: Request<DownloadFileRequest>,
     ) -> Result<Response<Self::DownloadFileStream>, Status> {
         let (xs, xr) = mpsc::channel(10);
         let file_request = request.into_inner();
@@ -57,10 +62,7 @@ impl PublicStorage for Storage {
         });
         Ok(Response::new(ReceiverStream::new(xr)))
     }
-}
 
-#[tonic::async_trait]
-impl PrivateStorage for Storage {
     async fn upload_file(
         &self,
         request: Request<Streaming<UploadChunk>>,
@@ -104,14 +106,31 @@ impl PrivateStorage for Storage {
         }
         Ok(Response::new(()))
     }
+}
 
-    async fn delete_file(&self, request: Request<FileRequest>) -> Result<Response<()>, Status> {
-        // ? "FILE ID" PODRÍA SER INUTIL SI SE TOMA DE DESICIÓN DE DISEÑO DE OBTENER EL FILE ID DESDE EL METADATA SERVER
-        // TODO: SE DEBE COMPROBAR QUE SE CONECTA AL NODO CORRECTO CON EL "NODE ID" O DESECHAR EL "NODE ID"
-        let assigned_node = request.into_inner();
-        tokio::fs::remove_file(assigned_node.file_id)
+#[tonic::async_trait]
+impl MetadataInstructions for Storage {
+    async fn delete_file(
+        &self,
+        request: Request<DeleteFileRequest>,
+    ) -> Result<Response<()>, Status> {
+        let request = request.into_inner();
+        tokio::fs::remove_file(request.file_id)
             .await
             .map_err(|e| Status::not_found(e.kind().to_string()))?;
+        Ok(Response::new(()))
+    }
+
+    async fn delete_files(
+        &self,
+        request: Request<DeleteFilesRequest>,
+    ) -> Result<Response<()>, Status> {
+        let request = request.into_inner();
+        for file in request.file_ids {
+            tokio::fs::remove_file(file)
+                .await
+                .map_err(|e| Status::not_found(e.kind().to_string()))?;
+        }
         Ok(Response::new(()))
     }
 }

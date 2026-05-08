@@ -2,21 +2,26 @@
 CREATE TABLE  users (
     user_name TEXT PRIMARY KEY, 
     password_hash TEXT NOT NULL,
-    user_role role NOT NULL DEFAULT 'User'
+    user_role role NOT NULL, -- DEFAULT 'User'
+    tokens_valid_after BIGINT NOT NULL
 );
 
 CREATE TABLE topics (
     id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
+    name TEXT NOT NULL,
+    created_by TEXT REFERENCES users(user_name),
+    scope scope NOT NULL,
+
+    CONSTRAINT unique_topic_per_user UNIQUE NULLS NOT DISTINCT (name, created_by, scope)
 );
 
 CREATE TABLE sub_topics (
     id SERIAL PRIMARY KEY,
-    topic_id INT REFERENCES topics(id) ON DELETE CASCADE, -- Un sub-tema pertenece a un tema
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    created_by TEXT REFERENCES users(user_name),
+    scope scope NOT NULL,
 
-    CONSTRAINT sub_topics_id_topic_id_key 
-        UNIQUE (id, topic_id)
+    CONSTRAINT unique_sub_topic_per_user UNIQUE NULLS NOT DISTINCT (name, created_by, scope)
 );
 
 CREATE TABLE scientific_documents (
@@ -38,16 +43,15 @@ CREATE TABLE document_topics (
 );
 
 CREATE TABLE document_sub_topics (
-    document_id UUID NOT NULL,
-    sub_topic_id INT NOT NULL,
-    
+    document_id UUID REFERENCES scientific_documents(id) ON DELETE CASCADE,
+    sub_topic_id INT REFERENCES sub_topics(id) ON DELETE CASCADE,
     PRIMARY KEY (document_id, sub_topic_id)
 );
 
 CREATE TABLE metadata_nodes (
     id UUID PRIMARY KEY,
     ip INET NOT NULL,
-    port INT NOT NULL DEFAULT 31416,
+    port INT NOT NULL,
     node_status status NOT NULL,
     last_heartbeat TIMESTAMPTZ NOT NULL -- DEFAULT CURRENT_TIMESTAMP
 );
@@ -55,7 +59,7 @@ CREATE TABLE metadata_nodes (
 CREATE TABLE storage_nodes (
     id UUID PRIMARY KEY,
     ip INET NOT NULL,
-    port INT NOT NULL DEFAULT 31416,
+    port INT NOT NULL,
     node_status status NOT NULL,
     last_heartbeat TIMESTAMPTZ NOT NULL-- DEFAULT CURRENT_TIMESTAMP
 );
@@ -69,5 +73,5 @@ CREATE TABLE document_storage_nodes (
 );
 
 CREATE TABLE operation_ids (
-    operation UUID PRIMARY KEY DEFAULT gen_random_uuid()
+    operation UUID PRIMARY KEY -- DEFAULT gen_random_uuid()
 )

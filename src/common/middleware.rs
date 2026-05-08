@@ -4,57 +4,46 @@ mod client_storage_proto {
 
 use super::auth::verify_jwt;
 use super::types::jwt_types::TokenClaims;
+use tonic::Status;
+
+use sqlx::PgPool;
 use std::{
     pin::Pin,
     task::{Context, Poll},
 };
-use tonic::{Request, Status};
+use tonic::metadata::MetadataMap;
 use tower::{Layer, Service};
 
-pub fn auth_jwt(mut req: Request<()>) -> Result<Request<()>, Status> {
-    let header_jwt = req
-        .metadata()
-        .get("jwt")
-        .and_then(|result| result.to_str().ok());
-
-    match header_jwt {
-        Some(jwt) => {
-            let claims = verify_jwt::<TokenClaims>(jwt)
-                .map_err(|e| Status::unauthenticated(e.to_string()))?;
-            req.extensions_mut().insert(claims);
-        }
-        None => {
-            return Err(Status::unauthenticated(r#"No "jwt" was provided"#));
-        }
-    }
-
-    Ok(req)
+#[derive(Clone)]
+pub struct AuthLayer {
+    pub db: PgPool,
 }
 
-#[derive(Debug, Clone)]
-pub struct PermisionLayer;
-
-impl<S> Layer<S> for PermisionLayer {
-    type Service = Permision<S>;
+impl<S> Layer<S> for AuthLayer {
+    type Service = AuthMiddleware<S>;
 
     fn layer(&self, service: S) -> Self::Service {
-        Permision { inner: service }
+        AuthMiddleware {
+            inner: service,
+            db: self.db.clone(),
+        }
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Permision<S> {
+#[derive(Clone)]
+pub struct AuthMiddleware<S> {
     inner: S,
+    db: PgPool,
 }
 
 type BoxFuture<'a, T> = Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
 
-impl<S, ReqBody, ResBody> Service<http::Request<ReqBody>> for Permision<S>
+impl<S, ReqBody, ResBody> Service<http::Request<ReqBody>> for AuthMiddleware<S>
 where
     S: Service<http::Request<ReqBody>, Response = http::Response<ResBody>> + Clone + Send + 'static,
     S::Future: Send + 'static,
     ReqBody: Send + 'static,
-    ResBody: Default,
+    ResBody: Default + Send + 'static,
 {
     type Response = S::Response;
     type Error = S::Error;
@@ -67,42 +56,52 @@ where
     fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
         let clone = self.inner.clone();
         let mut inner = std::mem::replace(&mut self.inner, clone);
+        let db = self.db.clone();
 
         Box::pin(async move {
-            // 1. Extraer el operation_id de los headers (Metadata)
-            let op_id_header = req
-                .headers()
-                .get("operation_id")
-                .and_then(|v| v.to_str().ok());
+            // Extraemos los metadatos directamente de los headers de la request HTTP
+            let metadata = MetadataMap::from_headers(req.headers().clone());
 
-            let _op_id = match op_id_header {
-                Some(id) => id.to_string(),
-                None => {
-                    let status =
-                        tonic::Status::permission_denied(r#"No "operation_id" was provided"#);
-                    return Ok(status.into_http()); // Convertimos Status a Response HTTP
+            // Ejecutamos la lógica de validación pasando los metadatos y las extensiones
+            // No necesitamos crear una tonic::Request completa aquí
+            match auth_logic(metadata, &db).await {
+                Ok(claims) => {
+                    let mut req = req;
+                    req.extensions_mut().insert(claims);
+                    inner.call(req).await
                 }
-            };
-            let _jwt_claims = match req.extensions().get::<TokenClaims>() {
-                Some(jwt_claims) => jwt_claims,
-                None => {
-                    let status = tonic::Status::internal(
-                        r#"Authentication failure: Missing a required request extension "jwt_claims"#,
-                    );
-                    return Ok(status.into_http());
-                }
-            };
-
-            // ! ⚠️ IMPLEMENTAR LA LLAMADA A METADATA SERVER PARA VERIFICAR PERMISO DE OPERACIÓN, EXISTENCIA Y COINCIDENCIA
-            let allowed = true; // Simulación del resultado del otro servidor
-
-            if !allowed {
-                let status = tonic::Status::permission_denied("Operación no autorizada");
-                return Ok(status.into_http());
+                Err(status) => Ok(status.into_http::<ResBody>()),
             }
-
-            let response: http::Response<ResBody> = inner.call(req).await?;
-            Ok(response)
         })
     }
+}
+
+async fn auth_logic(metadata: MetadataMap, db: &PgPool) -> Result<TokenClaims, Status> {
+    let jwt = metadata
+        .get("jwt")
+        .ok_or_else(|| Status::unauthenticated(r#"No "jwt" was provided"#))?
+        .to_str()
+        .map_err(|_| Status::invalid_argument(r#"Wrong "jwt" format"#))?;
+
+    let claims = verify_jwt::<TokenClaims>(jwt).map_err(|e| match e.kind() {
+        jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
+            Status::permission_denied("Expired token")
+        }
+        _ => Status::invalid_argument("Token decodification failed"),
+    })?;
+
+    let tokens_valid_after: i64 =
+        sqlx::query_scalar("SELECT tokens_valid_after FROM users WHERE user_name = $1")
+            .bind(&claims.sub)
+            .fetch_one(db)
+            .await
+            .map_err(|_| Status::not_found("Token subject not found in database"))?;
+
+    if tokens_valid_after > claims.iat {
+        return Err(Status::permission_denied(
+            "The given token is no longer valid",
+        ));
+    }
+
+    Ok(claims)
 }

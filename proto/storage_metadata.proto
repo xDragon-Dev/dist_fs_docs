@@ -18,12 +18,25 @@ message ReportFileRequest {
   string checksum        = 4;
 }
 
+//Request to acces or indicate action related to a file
+message DeleteFileRequest {
+  string file_id = 1;
+}
+
+message DeleteFilesRequest {
+  repeated string file_ids = 1;
+}
  // Interfaz para que los Storage Servers reporten su estado al Metadata Server (Orquestación)
-service StorageCoordinator {
+service StorageSignals {
   // El Storage avisa que sigue vivo y cuánto espacio tiene
   rpc Heartbeat(HeartbeatRequest) returns (google.protobuf.Empty);
   // El Storage confirma que un archivo se escribió correctamente
   rpc ConfirmUpload(ReportFileRequest) returns (google.protobuf.Empty);
-  // El Storage confirma que un archivo se eliminó correctamente
-  rpc ConfirmDelete(ReportFileRequest) returns (google.protobuf.Empty);
+}
+
+service MetadataInstructions {
+  //Deletes a file from a storage server
+  rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty);
+  //Deletes a files from a storage server
+  rpc DeleteFiles(DeleteFilesRequest) returns (google.protobuf.Empty);
 }

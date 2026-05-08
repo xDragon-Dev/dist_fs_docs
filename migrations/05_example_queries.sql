@@ -1,8 +1,8 @@
-INSERT INTO users (user_name, password_hash, user_role)
+INSERT INTO users (user_name, password_hash, user_role, tokens_valid_after)
 VALUES 
-    ('Juanito','12345678','User'),
-    ('Pedrito','12345678','User'),
-    ('Maria','12345678','User');
+    ('Juanito','12345678','User', 0),
+    ('Pedrito','12345678','User', 0),
+    ('Maria','12345678','User', 0);
 
 
 INSERT INTO scientific_documents (id, posted_by, title, authors, abstract, keywords, document_type, publication_date, language)
@@ -108,14 +108,35 @@ VALUES
 
     ('61815cc3-1e51-47af-82df-110ef9c98e26', 82);
 
-
-INSERT INTO operation_ids DEFAULT VALUES 
-RETURNING operation;
-
 INSERT INTO operation_ids VALUES 
 ('92390b1d-e4fb-4d4e-80f3-a0d5c780a505');
 
 /*
-DELETE FROM operation_ids 
-WHERE operation = 'uuid-a-borrar';
+FREE TO USE UUID FOR TESTING
+
+b0447da8-5d55-4fea-96d5-ef47a3b331da
+0168917a-1192-4f27-b1cb-6b2ea6eb79ea
+832351b5-4ffa-454f-a36e-2d369b45edd4
+62c71a3c-6447-451c-9d5d-877ddf1479f5
+4367275d-70b7-428c-b363-5d68baec31e4
+4d62ad15-1f15-4bc7-bc17-36dcb47d5ee9
+c251d2a1-29f2-43ec-802f-2dcbec06b361
 */
+
+INSERT INTO metadata_nodes(id, ip, port, node_status, last_heartbeat)
+VALUES 
+('15ece130-2784-4932-8bb1-9887f7046b46', '::1', 31415, 'Active', CURRENT_TIMESTAMP);
+
+INSERT INTO storage_nodes(id, ip, port, node_status, last_heartbeat)
+VALUES 
+('6e56f659-2537-4746-a20e-4485df339931', '::1', 31416, 'Active', CURRENT_TIMESTAMP);
+
+
+INSERT INTO document_storage_nodes(document_id,storage_node_id,is_verified,content_hash)
+VALUES
+('0e010c9e-217c-43e3-8fbf-50b64e2865c5','6e56f659-2537-4746-a20e-4485df339931','true','CONTENT HASH NO USADO XD, CONSIDERAR ELIMINAR'),
+('a6c8e2b9-501c-4535-873a-ffea5f9dda9a','6e56f659-2537-4746-a20e-4485df339931','true','CONTENT HASH NO USADO XD, CONSIDERAR ELIMINAR'),
+('92390b1d-e4fb-4d4e-80f3-a0d5c780a505','6e56f659-2537-4746-a20e-4485df339931','true','CONTENT HASH NO USADO XD, CONSIDERAR ELIMINAR'),
+('18a90c6a-e8ba-4cbb-9a61-8d7f42db9f8e','6e56f659-2537-4746-a20e-4485df339931','true','CONTENT HASH NO USADO XD, CONSIDERAR ELIMINAR'),
+('da507d7d-8d65-4933-aa7c-7210961906b7','6e56f659-2537-4746-a20e-4485df339931','true','CONTENT HASH NO USADO XD, CONSIDERAR ELIMINAR'),
+('61815cc3-1e51-47af-82df-110ef9c98e26','6e56f659-2537-4746-a20e-4485df339931','true','CONTENT HASH NO USADO XD, CONSIDERAR ELIMINAR');
