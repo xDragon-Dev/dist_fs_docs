@@ -3,7 +3,7 @@ mod client_storage_proto {
 }
 
 use super::auth::verify_jwt;
-use super::types::jwt_types::TokenClaims;
+use super::types::jwt_types::Claims;
 use tonic::Status;
 
 use sqlx::PgPool;
@@ -76,14 +76,14 @@ where
     }
 }
 
-async fn auth_logic(metadata: MetadataMap, db: &PgPool) -> Result<TokenClaims, Status> {
+async fn auth_logic(metadata: MetadataMap, db: &PgPool) -> Result<Claims, Status> {
     let jwt = metadata
         .get("jwt")
         .ok_or_else(|| Status::unauthenticated(r#"No "jwt" was provided"#))?
         .to_str()
         .map_err(|_| Status::invalid_argument(r#"Wrong "jwt" format"#))?;
 
-    let claims = verify_jwt::<TokenClaims>(jwt).map_err(|e| match e.kind() {
+    let claims = verify_jwt::<Claims>(jwt).map_err(|e| match e.kind() {
         jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
             Status::permission_denied("Expired token")
         }

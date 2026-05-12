@@ -17,7 +17,7 @@ use tokio_stream::StreamExt;
 use tokio_stream::wrappers::ReceiverStream;
 
 use metadata_proto::private_metadata_client::PrivateMetadataClient;
-use storage_proto::storage_service_client::StorageServiceClient;
+use storage_proto::storage_client::StorageClient;
 
 use metadata_proto::*;
 use storage_proto::upload_chunk::Data;
@@ -32,7 +32,7 @@ use sha2::{Digest, Sha256};
 async fn _upload_file(
     path: impl AsRef<Path> + 'static + Send,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut connection = StorageServiceClient::connect("http://[::1]:31416").await?;
+    let mut connection = StorageClient::connect("http://[::1]:31416").await?;
     let (xs, xr) = mpsc::channel(10);
 
     let mut buffer = [0_u8; 65536];
@@ -61,9 +61,9 @@ async fn _upload_file(
 
     let mut request = tonic::Request::new(ReceiverStream::new(xr));
 
-    let jwt_claims = TokenClaims {
+    let jwt_claims = Claims {
         sub: "Juanito".into(),
-        user_role: jwt_types::Role::User,
+        role: jwt_types::Role::User,
         exp: i64::MAX,
         iat: i64::MIN,
     };
@@ -84,7 +84,7 @@ async fn _upload_file(
 }
 
 async fn _download_file() -> Result<(), Box<dyn std::error::Error>> {
-    let mut connection = StorageServiceClient::connect("http://[::1]:31416").await?;
+    let mut connection = StorageClient::connect("http://[::1]:31416").await?;
     let request = DownloadFileRequest {
         file_id: "79f8dacd-84be-49f8-addd-09977c28666b".into(),
     };
@@ -105,9 +105,9 @@ async fn _delete_file() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut request = tonic::Request::new(file_request);
 
-    let jwt_claims = TokenClaims {
+    let jwt_claims = Claims {
         sub: "Juanito".into(),
-        user_role: jwt_types::Role::User,
+        role: jwt_types::Role::User,
         exp: i64::MAX,
         iat: i64::MIN,
     };

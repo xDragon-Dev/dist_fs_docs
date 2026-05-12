@@ -1,6 +1,6 @@
 mod storage;
 
-use storage::{MetadataInstructionsServer, Storage, StorageServiceServer};
+use storage::prelude::*;
 
 use dotenvy::dotenv;
 use tonic::transport::Server;
@@ -10,7 +10,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     let addr = "[::1]:31416".parse().unwrap();
 
-    let storage_svc = StorageServiceServer::new(Storage);
+    let storage_svc = StorageServer::new(Storage);
     let metadata_instructions = MetadataInstructionsServer::new(Storage);
 
     Server::builder()

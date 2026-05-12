@@ -1,8 +1,8 @@
 INSERT INTO users (user_name, password_hash, user_role, tokens_valid_after)
 VALUES 
-    ('Juanito','12345678','User', 0),
-    ('Pedrito','12345678','User', 0),
-    ('Maria','12345678','User', 0);
+    ('Juanito','$argon2id$v=19$m=19456,t=2,p=1$ZzUJe0QU4HQa2OF4g3cGTw$sYc5mqZ+whaKeXtZN05Te2EQ3zk3tgCwV8cnGJUoVyY','User', 0),
+    ('Pedrito','$argon2id$v=19$m=19456,t=2,p=1$cL2uwHCXVMl8T1ufFveuxw$raHbYwmnbi/qdHmhhv/0mhpW0K+B0SpEYzRskD5/sjM','User', 0),
+    ('Maria','$argon2id$v=19$m=19456,t=2,p=1$js9C7p1sMmcI1qnRG77M/Q$uay1aWZMdHO2O7gmcb32x6yQIf7EjGUnZPulVuVDVJA','User', 0);
 
 
 INSERT INTO scientific_documents (id, posted_by, title, authors, abstract, keywords, document_type, publication_date, language)

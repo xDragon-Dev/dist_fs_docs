@@ -1,4 +1,3 @@
-mod database;
 mod metadata;
 
 use dotenvy::dotenv;
@@ -9,7 +8,7 @@ use tonic::transport::Server;
 use tower::ServiceBuilder;
 
 use common::middleware::*;
-use metadata::{Metadata, PrivateMetadataServer, PublicMetadataServer};
+use metadata::prelude::*;
 
 use sqlx::postgres::PgPoolOptions;
 

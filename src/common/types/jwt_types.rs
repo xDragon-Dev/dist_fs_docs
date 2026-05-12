@@ -7,9 +7,9 @@ pub enum Role {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct TokenClaims {
+pub struct Claims {
     pub sub: String,
-    pub user_role: Role,
+    pub role: Role,
     pub exp: i64,
     pub iat: i64,
 }

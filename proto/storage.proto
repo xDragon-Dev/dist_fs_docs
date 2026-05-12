@@ -27,7 +27,7 @@ message DownloadFileRequest {
 }
 
 //-----SERVICE RELATED TO ALL OPERATIONS BETWEEN CLIENTS AND STORAGE SERVERS-----
-service StorageService{
+service Storage{
   //Returns all bytes of a file
   rpc DownloadFile(DownloadFileRequest) returns (stream DownloadResponse);
   //Obtains all bytes of your file and stores it

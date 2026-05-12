@@ -57,8 +57,8 @@ message DownloadNodeRequest {
 
 //Datatype that contains information about a storage node you need to download or upload
 message AssignedNode {
-  string ipv4_address = 1; // ej. "192.168.1.100:50051"
-  string port         = 2; // ID temporal para que el Storage confíe en el cliente
+  string end_point = 1;
+  string operation = 2;
 }
 
 message DeleteDocumentRequest {

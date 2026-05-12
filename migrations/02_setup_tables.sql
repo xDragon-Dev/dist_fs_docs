@@ -1,15 +1,15 @@
 --Creates all related tables in the database
 CREATE TABLE  users (
-    user_name TEXT PRIMARY KEY, 
+    user TEXT PRIMARY KEY, 
     password_hash TEXT NOT NULL,
-    user_role role NOT NULL, -- DEFAULT 'User'
+    role role NOT NULL, -- DEFAULT 'User'
     tokens_valid_after BIGINT NOT NULL
 );
 
 CREATE TABLE topics (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
-    created_by TEXT REFERENCES users(user_name),
+    created_by TEXT REFERENCES users(user),
     scope scope NOT NULL,
 
     CONSTRAINT unique_topic_per_user UNIQUE NULLS NOT DISTINCT (name, created_by, scope)
@@ -18,21 +18,21 @@ CREATE TABLE topics (
 CREATE TABLE sub_topics (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
-    created_by TEXT REFERENCES users(user_name),
+    created_by TEXT REFERENCES users(user),
     scope scope NOT NULL,
 
     CONSTRAINT unique_sub_topic_per_user UNIQUE NULLS NOT DISTINCT (name, created_by, scope)
 );
 
 CREATE TABLE scientific_documents (
-    id UUID PRIMARY KEY, --DEFAULT gen_random_uuid()
-    posted_by TEXT NOT NULL REFERENCES users(user_name),
+    id UUID PRIMARY KEY, -- DEFAULT gen_random_uuid()
+    posted_by TEXT NOT NULL REFERENCES users(user),
     title TEXT NOT NULL,
     authors TEXT[] NOT NULL,
     abstract TEXT NOT NULL,
     keywords TEXT[] NOT NULL,
     document_type document_type NOT NULL,
-    publication_date TIMESTAMPTZ NOT NULL, --DEFAULT CURRENT_TIMESTAMP
+    publication_date TIMESTAMPTZ NOT NULL, -- DEFAULT CURRENT_TIMESTAMP
     language TEXT NOT NULL
 );
 
@@ -61,7 +61,7 @@ CREATE TABLE storage_nodes (
     ip INET NOT NULL,
     port INT NOT NULL,
     node_status status NOT NULL,
-    last_heartbeat TIMESTAMPTZ NOT NULL-- DEFAULT CURRENT_TIMESTAMP
+    last_heartbeat TIMESTAMPTZ NOT NULL -- DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE document_storage_nodes (
@@ -72,6 +72,13 @@ CREATE TABLE document_storage_nodes (
     PRIMARY KEY (document_id, storage_node_id)
 );
 
-CREATE TABLE operation_ids (
-    operation UUID PRIMARY KEY -- DEFAULT gen_random_uuid()
+CREATE TABLE operations (
+    id UUID PRIMARY KEY, -- DEFAULT gen_random_uuid()
+    kind kind NOT NULL,
+    executant TEXT REFERENCES users(user)
+)
+
+CREATE TABLE failed_deletions (
+    storage_node_id UUID REFERENCES storage_nodes(id) ON DELETE CASCADE
+    files UUID[] NOT NULL
 )

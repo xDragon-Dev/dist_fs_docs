@@ -19,3 +19,8 @@ CREATE TYPE scope AS ENUM (
     'Local',
     'Global'
 )
+
+CREATE TYPE kind AS ENUM (
+    'Upload'
+    'Download'
+)
