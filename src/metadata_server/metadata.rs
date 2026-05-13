@@ -3,8 +3,8 @@ mod public;
 
 pub mod prelude {
     pub use super::Metadata;
-    pub use super::private::PrivateMetadataServer;
-    pub use super::public::PublicMetadataServer;
+    pub use super::private::MetadataPrivateServer;
+    pub use super::public::MetadataPublicServer;
 }
 
 pub struct Metadata {

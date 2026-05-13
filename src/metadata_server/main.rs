@@ -28,10 +28,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let layer = ServiceBuilder::new().layer(AuthLayer { db: pool.clone() });
 
-    let priv_svc = PrivateMetadataServer::new(Metadata {
+    let priv_svc = MetadataPrivateServer::new(Metadata {
         pg_pool: pool.clone(),
     });
-    let pub_svc = PublicMetadataServer::new(Metadata {
+    let pub_svc = MetadataPublicServer::new(Metadata {
         pg_pool: pool.clone(),
     });
 

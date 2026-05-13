@@ -1,45 +1,44 @@
-mod metadata_proto {
-    tonic::include_proto!("metadata");
+mod metadata_private_proto {
+    tonic::include_proto!("metadata_private");
 }
 
-mod storage_metadata_proto {
-    tonic::include_proto!("storage_metadata");
+mod storage_instructions_proto {
+    tonic::include_proto!("storage_instructions");
 }
 
-use metadata_proto::private_metadata_server::PrivateMetadata;
-pub use metadata_proto::private_metadata_server::PrivateMetadataServer;
+use metadata_private_proto::metadata_private_server::MetadataPrivate;
+pub use metadata_private_proto::metadata_private_server::MetadataPrivateServer;
 
-use metadata_proto::{
+use metadata_private_proto::{
     AssignedNode, ChangePasswordRequest, ChangeUserNameRequest, CreateSubTopicRequest,
     CreateTopicRequest, DeleteUserRequest, DownloadNodeRequest, ScientificDocument,
     ScientificDocumentRequest, SearchRequest, SearchResults, SubTopic, SubTopics, Topic, Topics,
     UploadNodeRequest,
 };
 
-use storage_metadata_proto::metadata_instructions_client::MetadataInstructionsClient;
-use storage_metadata_proto::{DeleteFileRequest, DeleteFilesRequest};
-
+use storage_instructions_proto::storage_instructions_client::StorageInstructionsClient;
+use storage_instructions_proto::{DeleteFileRequest, DeleteFilesRequest};
 use tonic::{Request, Response, Status};
 
+use std::collections::HashMap;
+use std::net::IpAddr;
+use std::str::FromStr;
+
+use chrono::{DateTime, Utc};
 use common::auth::*;
 use common::types::{
     jwt_types::{self, *},
     sql_types::{self, *},
 };
 use uuid::Uuid;
-
-use chrono::prelude::*;
-use std::collections::HashMap;
-use std::net::IpAddr;
-use std::str::FromStr;
 use validator::Validate;
 
-use metadata_proto::{
+use metadata_private_proto::{
     DeleteDocumentRequest, DeleteSubTopicRequest, DeleteTopicRequest, SearchResult,
 };
 
 #[tonic::async_trait]
-impl PrivateMetadata for super::Metadata {
+impl MetadataPrivate for super::Metadata {
     // * FUNCIÓN CASI CORRECTA 😭
     async fn delete_user(
         &self,
@@ -143,7 +142,7 @@ impl PrivateMetadata for super::Metadata {
         tokio::spawn(async move {
             for (endpoint, doc_ids) in documents_hash_map {
                 let mut metadata_instructions =
-                    match MetadataInstructionsClient::connect(endpoint.1.clone()).await {
+                    match StorageInstructionsClient::connect(endpoint.1.clone()).await {
                         Ok(client) => client,
                         Err(_) => {
                             sqlx::query(
@@ -342,7 +341,10 @@ impl PrivateMetadata for super::Metadata {
         };
 
         // ! ⚠️⚠️ POR IMPLEMENTAR ⚠️⚠️
-        let response: AssignedNode = AssignedNode { end_point, operation: String::new() };
+        let response: AssignedNode = AssignedNode {
+            end_point,
+            operation: String::new(),
+        };
         Ok(Response::new(response))
     }
 
@@ -416,7 +418,7 @@ impl PrivateMetadata for super::Metadata {
         };
 
         // * ELIMINACIÓN DEL ARCHIVOS EN NODOS DE ALMACENAMIENTO
-        let mut connection = match MetadataInstructionsClient::connect(end_point).await {
+        let mut connection = match StorageInstructionsClient::connect(end_point).await {
             Ok(conn) => conn,
             Err(_) => {
                 sqlx::query("INSERT INTO failed_deletions(storage_node_id, files) VALUES ($1, $2)")

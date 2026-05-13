@@ -1,12 +1,12 @@
-mod storage_proto {
-    tonic::include_proto!("storage");
+mod storage_private_proto {
+    tonic::include_proto!("storage_private");
 }
 
-use storage_proto::storage_server::Storage as StorageService;
-pub use storage_proto::storage_server::StorageServer;
+use storage_private_proto::storage_private_server::StoragePrivate;
+pub use storage_private_proto::storage_private_server::StoragePrivateServer;
 
-use storage_proto::upload_chunk::Data;
-use storage_proto::*;
+use storage_private_proto::upload_chunk::Data;
+use storage_private_proto::*;
 
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -21,8 +21,8 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 #[tonic::async_trait]
-impl StorageService for super::Storage {
-    type DownloadFileStream = ReceiverStream<Result<DownloadResponse, Status>>;
+impl StoragePrivate for super::Storage {
+    type DownloadFileStream = ReceiverStream<Result<DownloadChunk, Status>>;
     /*
     ? NECESITA AUTENTICACIÓN: SI
     Por qué? Suponiendo que el metadata server ya hizo su trabajo dandote el nodo correcto para el id de un archivo que
@@ -45,7 +45,7 @@ impl StorageService for super::Storage {
                         if n == 0 {
                             break;
                         }
-                        let response = DownloadResponse {
+                        let response = DownloadChunk {
                             content: buffer[..n].to_vec(),
                         };
                         if xs.send(Ok(response)).await.is_err() {

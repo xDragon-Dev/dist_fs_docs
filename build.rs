@@ -1,10 +1,12 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let protos = [
-        "proto/metadata.proto",
-        "proto/storage.proto",
+        "proto/metadata_instructions.proto",
         "proto/metadata_replication.proto",
+        "proto/metadata_private.proto",
+        "proto/metadata_public.proto",
+        "proto/storage_instructions.proto",
         "proto/storage_replication.proto",
-        "proto/storage_metadata.proto",
+        "proto/storage_private.proto",
     ];
 
     tonic_prost_build::configure()

@@ -1,5 +1,5 @@
 syntax = "proto3";
-package storage;
+package storage_private;
 
 import "google/protobuf/empty.proto";
 
@@ -17,7 +17,7 @@ message UploadChunk {
 }
 
 //Datatype that holds the data of the file you want to download ✅
-message DownloadResponse {
+message DownloadChunk {
   bytes content = 1;
 }
 
@@ -27,9 +27,9 @@ message DownloadFileRequest {
 }
 
 //-----SERVICE RELATED TO ALL OPERATIONS BETWEEN CLIENTS AND STORAGE SERVERS-----
-service Storage{
+service StoragePrivate {
   //Returns all bytes of a file
-  rpc DownloadFile(DownloadFileRequest) returns (stream DownloadResponse);
+  rpc DownloadFile(DownloadFileRequest) returns (stream DownloadChunk);
   //Obtains all bytes of your file and stores it
   rpc UploadFile(stream UploadChunk) returns (google.protobuf.Empty);
 }

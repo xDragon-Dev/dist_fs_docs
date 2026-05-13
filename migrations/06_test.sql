@@ -4,18 +4,17 @@ TODO: TESTING 🤜
 ! FAILED ❌👎
 
 El administrador podrá realizar las siguientes operaciones: 
-- Dar de alta un usuario
-- Dar de baja un usuario
-- Eliminar temática o subtemática de cualquier usuario aunque no estén vacías
-- Modificar nombres de usuario y/o contraseñas.
 
-Operaciones:
 Las operaciones que permitirá son:
 - Registrar usuario (no hay necesidad de que el administrador lo realice). El usuario deberá elegir un nombre de usuario y contraseña.
 - Ingresar al sistema, con nombre de usuario y contraseña.
+- Modificar nombres de usuario y/o contraseñas.
+- Dar de baja un usuario
+
 - Dar de alta una temática
 - Dar de alta una subtemática
 - Eliminar una temática o subtemática (siempre cuando éstas se encuentren vacías)
+- Eliminar una temática o subtemática de cualquier usuario aunque no estén vacías (como admin)
 - Subir un documento
 - Descargar un documento
 - Eliminar un documento

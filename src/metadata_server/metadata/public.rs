@@ -1,25 +1,22 @@
-mod metadata_proto {
-    tonic::include_proto!("metadata");
+mod metadata_public_proto {
+    tonic::include_proto!("metadata_public");
 }
 
-use metadata_proto::public_metadata_server::PublicMetadata;
-pub use metadata_proto::public_metadata_server::PublicMetadataServer;
+use metadata_public_proto::metadata_public_server::MetadataPublic;
+pub use metadata_public_proto::metadata_public_server::MetadataPublicServer;
 
-use metadata_proto::{CreateUserRequest, LogInRequest, SubTopic, SubTopics, Topic, Topics};
+use metadata_public_proto::{CreateUserRequest, LogInRequest, SubTopic, SubTopics, Topic, Topics};
 
 use tonic::{Request, Response, Status};
 
 use common::auth::*;
-use common::types::{
-    jwt_types::{self, *},
-    sql_types,
-};
+use common::types::{jwt_types, sql_types};
 
-use chrono::prelude::*;
+use chrono::Utc;
 use validator::Validate;
 
 #[tonic::async_trait]
-impl PublicMetadata for super::Metadata {
+impl MetadataPublic for super::Metadata {
     // * FUNCIÓN EN SU FORMA FINAL Y CORRECTA ✅
     async fn create_user(
         &self,
@@ -43,12 +40,13 @@ impl PublicMetadata for super::Metadata {
                 let jwt = metadata_jwt
                     .to_str()
                     .map_err(|_| Status::invalid_argument(r#"Wrong "jwt" format"#))?;
-                let token_claims = verify_jwt::<Claims>(jwt).map_err(|e| match e.kind() {
-                    jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
-                        Status::permission_denied("Expired token")
-                    }
-                    _ => Status::invalid_argument("Token decodification failed"),
-                })?;
+                let token_claims =
+                    verify_jwt::<jwt_types::Claims>(jwt).map_err(|e| match e.kind() {
+                        jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
+                            Status::permission_denied("Expired token")
+                        }
+                        _ => Status::invalid_argument("Token decodification failed"),
+                    })?;
                 Some(token_claims.role)
             }
             None => None,
@@ -102,7 +100,7 @@ impl PublicMetadata for super::Metadata {
             .ok_or(Status::internal("Date out of the 64-bit limit"))?
             .timestamp();
 
-        let token_claims = Claims {
+        let token_claims = jwt_types::Claims {
             sub: request.user_name.clone(),
             role: role.into(),
             exp: exp,

@@ -1,16 +1,15 @@
-mod storage_metadata_proto {
-    tonic::include_proto!("storage_metadata");
+mod storage_instructions_proto {
+    tonic::include_proto!("storage_instructions");
 }
 
-pub use storage_metadata_proto::metadata_instructions_server::MetadataInstructionsServer;
-
-use storage_metadata_proto::metadata_instructions_server::MetadataInstructions;
-use storage_metadata_proto::*;
+use storage_instructions_proto::storage_instructions_server::StorageInstructions;
+pub use storage_instructions_proto::storage_instructions_server::StorageInstructionsServer;
+use storage_instructions_proto::{DeleteFileRequest, DeleteFilesRequest};
 
 use tonic::{Request, Response, Status};
 
 #[tonic::async_trait]
-impl MetadataInstructions for super::Storage {
+impl StorageInstructions for super::Storage {
     async fn delete_file(
         &self,
         request: Request<DeleteFileRequest>,

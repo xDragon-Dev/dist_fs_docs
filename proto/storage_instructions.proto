@@ -1,0 +1,20 @@
+syntax = "proto3";
+package storage_instructions;
+
+import "google/protobuf/empty.proto";
+
+//Request to acces or indicate action related to a file
+message DeleteFileRequest {
+  string file_id = 1;
+}
+
+message DeleteFilesRequest {
+  repeated string file_ids = 1;
+}
+
+service StorageInstructions {
+  //Deletes a file from a storage server
+  rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty);
+  //Deletes a files from a storage server
+  rpc DeleteFiles(DeleteFilesRequest) returns (google.protobuf.Empty);
+}

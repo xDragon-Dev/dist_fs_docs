@@ -1,5 +1,5 @@
-mod client_storage_proto {
-    tonic::include_proto!("storage");
+mod storage_private_proto {
+    tonic::include_proto!("storage_private");
 }
 
 use super::auth::verify_jwt;

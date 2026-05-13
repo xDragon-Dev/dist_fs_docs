@@ -1,0 +1,61 @@
+syntax = "proto3";
+package metadata_public;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+//Userkind to define special permisions
+enum Role {
+  USER  = 0;
+  ADMIN = 1;
+}
+
+//Datatype that contains relevant information to create a user
+message CreateUserRequest {
+  string user_name        = 1;
+  string password         = 2;
+  string confirm_password = 3;
+  Role   user_role        = 4;
+}
+
+//Datatype that contains relevant information to login
+message LogInRequest {
+  string user_name = 1;
+  string password  = 2;
+  bool   remember  = 3;
+}
+
+//Datatype that contains information abount a topic
+message Topic {
+  int32  topic_id   = 1;
+  string topic_name = 2;
+}
+
+//Datatype that contains information abount a subtopic
+message SubTopic {
+  int32  subtopic_id   = 1;
+  string subtopic_name = 2;
+}
+
+//List of various topics
+message Topics {
+  repeated Topic content = 1;
+}
+
+//List of various subtopics
+message SubTopics {
+  repeated SubTopic content = 1;
+}
+
+//-----SERVICE RELATED TO ALL PUBLIC FILE OPERATIONS BETWEEN CLIENTS AND METADATA SERVERS-----
+service MetadataPublic {
+  //Creates a user with a given username and password
+  rpc CreateUser(CreateUserRequest) returns (google.protobuf.Empty);
+  //Takes a given username and password and returns a jwt
+  rpc LogIn(LogInRequest) returns (google.protobuf.StringValue);
+
+    //Returns all global topics
+  rpc GetGlobalTopics(google.protobuf.Empty) returns (Topics);
+  //Returns all related subtopics to the requesting user
+  rpc GetGlobalSubTopics(google.protobuf.Empty) returns (SubTopics);
+}

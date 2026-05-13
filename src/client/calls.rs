@@ -1,10 +1,34 @@
-mod storage_proto {
-    tonic::include_proto!("storage");
+mod storage_private_proto {
+    tonic::include_proto!("storage_private");
 }
 
-mod metadata_proto {
-    tonic::include_proto!("metadata");
+mod metadata_private_proto {
+    tonic::include_proto!("metadata_private");
 }
+
+mod metadata_public_proto {
+    tonic::include_proto!("metadata_public");
+}
+
+/*
+use metadata_private_proto::private_metadata_client::PrivateMetadataClient;
+use storage_private_proto::storage_client::StorageClient;
+
+use metadata_private_client
+
+use metadata_private_proto::*;
+use storage_private_proto::upload_chunk::Data;
+use storage_private_proto::*;
+*/
+
+use metadata_private_proto::metadata_private_client::MetadataPrivateClient;
+use metadata_public_proto::metadata_public_client::MetadataPublicClient;
+use storage_private_proto::storage_private_client::StoragePrivateClient;
+
+use metadata_private_proto::*;
+use metadata_public_proto::*;
+use storage_private_proto::upload_chunk::Data;
+use storage_private_proto::*;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -16,13 +40,6 @@ use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::ReceiverStream;
 
-use metadata_proto::private_metadata_client::PrivateMetadataClient;
-use storage_proto::storage_client::StorageClient;
-
-use metadata_proto::*;
-use storage_proto::upload_chunk::Data;
-use storage_proto::*;
-
 use common::auth::generate_jwt;
 use common::types::jwt_types;
 use common::types::jwt_types::*;
@@ -32,7 +49,7 @@ use sha2::{Digest, Sha256};
 async fn _upload_file(
     path: impl AsRef<Path> + 'static + Send,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut connection = StorageClient::connect("http://[::1]:31416").await?;
+    let mut connection = StoragePrivateClient::connect("http://[::1]:31416").await?;
     let (xs, xr) = mpsc::channel(10);
 
     let mut buffer = [0_u8; 65536];
@@ -84,7 +101,7 @@ async fn _upload_file(
 }
 
 async fn _download_file() -> Result<(), Box<dyn std::error::Error>> {
-    let mut connection = StorageClient::connect("http://[::1]:31416").await?;
+    let mut connection = StoragePrivateClient::connect("http://[::1]:31416").await?;
     let request = DownloadFileRequest {
         file_id: "79f8dacd-84be-49f8-addd-09977c28666b".into(),
     };
@@ -98,7 +115,7 @@ async fn _download_file() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn _delete_file() -> Result<(), Box<dyn std::error::Error>> {
-    let mut connection = PrivateMetadataClient::connect("http://[::1]:31416").await?;
+    let mut connection = MetadataPrivateClient::connect("http://[::1]:31416").await?;
     let file_request = DeleteDocumentRequest {
         document_id: "79f8dacd-84be-49f8-addd-09977c28666b".into(),
     };
