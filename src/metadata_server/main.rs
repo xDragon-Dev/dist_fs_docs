@@ -1,14 +1,11 @@
-mod metadata;
-
-use dotenvy::dotenv;
-use std::env;
-
 use tonic::service::LayerExt;
 use tonic::transport::Server;
 use tower::ServiceBuilder;
 
-use common::middleware::*;
-use metadata::prelude::*;
+use doc_svc::metadata::server::*;
+
+use std::env;
+use dotenvy::dotenv;
 
 use sqlx::postgres::PgPoolOptions;
 
@@ -26,14 +23,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr = "[::1]:31415".parse().unwrap();
 
-    let layer = ServiceBuilder::new().layer(AuthLayer { db: pool.clone() });
+    let layer = ServiceBuilder::new().layer(AuthLayer::new(pool.clone()));
 
-    let priv_svc = MetadataPrivateServer::new(Metadata {
-        pg_pool: pool.clone(),
-    });
-    let pub_svc = MetadataPublicServer::new(Metadata {
-        pg_pool: pool.clone(),
-    });
+    let priv_svc = MetadataPrivateServer::new(Metadata::new(pool.clone()));
+    let pub_svc = MetadataPublicServer::new(Metadata::new(pool.clone()));
 
     let priv_svc = layer.named_layer(priv_svc);
 

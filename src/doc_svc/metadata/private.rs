@@ -1,45 +1,28 @@
-mod metadata_private_proto {
-    tonic::include_proto!("metadata_private");
-}
+use crate::common::proto::metadata_private::service::*;
+use crate::common::proto::storage_instructions::client::*;
 
-mod storage_instructions_proto {
-    tonic::include_proto!("storage_instructions");
-}
-
-use metadata_private_proto::metadata_private_server::MetadataPrivate;
-pub use metadata_private_proto::metadata_private_server::MetadataPrivateServer;
-
-use metadata_private_proto::{
-    AssignedNode, ChangePasswordRequest, ChangeUserNameRequest, CreateSubTopicRequest,
-    CreateTopicRequest, DeleteUserRequest, DownloadNodeRequest, ScientificDocument,
-    ScientificDocumentRequest, SearchRequest, SearchResults, SubTopic, SubTopics, Topic, Topics,
-    UploadNodeRequest,
-};
-
-use storage_instructions_proto::storage_instructions_client::StorageInstructionsClient;
-use storage_instructions_proto::{DeleteFileRequest, DeleteFilesRequest};
 use tonic::{Request, Response, Status};
 
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::str::FromStr;
 
-use chrono::{DateTime, Utc};
-use common::auth::*;
-use common::types::{
+use crate::common::authentication::*;
+
+use crate::common::types::{
     jwt_types::{self, *},
     sql_types::{self, *},
 };
+
+use chrono::{DateTime, Utc};
+use rand::seq::IteratorRandom;
 use uuid::Uuid;
 use validator::Validate;
-
-use metadata_private_proto::{
-    DeleteDocumentRequest, DeleteSubTopicRequest, DeleteTopicRequest, SearchResult,
-};
 
 #[tonic::async_trait]
 impl MetadataPrivate for super::Metadata {
     // * FUNCIÓN CASI CORRECTA 😭
+    // TODO: MODIFICAR CLIENTE DE ELIMINACIÓN DE ARCHIVOS PARA NO RECONEXIÓN
     async fn delete_user(
         &self,
         request: Request<DeleteUserRequest>,
@@ -288,8 +271,8 @@ impl MetadataPrivate for super::Metadata {
         Ok(Response::new(()))
     }
 
-    // * FUNCION EN SU FORMA FINAL Y CORRECTA ✅
-    // TODO: iMPLEMENTACIÓN DE IDENTIFICACIÓN DE OPERACIÓN
+    // * FUNCIÓN CASI CORRECTA 😭
+    // ! POSIBLE CAMBIO DEPENDIENDO DE DESICIÓN DE DISEÑO DE COMUNICACIÓN
     async fn get_download_node(
         &self,
         request: Request<DownloadNodeRequest>,
@@ -322,7 +305,7 @@ impl MetadataPrivate for super::Metadata {
             ));
         }
 
-        let (ip, port): (std::net::IpAddr, i32) = sqlx::query_as(
+        let endpoints: Vec<(std::net::IpAddr, i32)> = sqlx::query_as(
             "SELECT sn.ip, sn.port
             FROM storage_nodes sn
             JOIN document_storage_nodes dsn
@@ -331,34 +314,87 @@ impl MetadataPrivate for super::Metadata {
         ",
         )
         .bind(id)
-        .fetch_one(&self.pg_pool)
+        .fetch_all(&self.pg_pool)
         .await
-        .map_err(|_| Status::not_found("Nonexistent document"))?;
+        .map_err(|_| Status::internal("Internal database error"))?;
 
-        let end_point = match ip {
+        // ! AQUI DESCANZAN MIS SUEÑOS DE HABERLO BALANCEADO CORRECTAMENTE 😭
+        let (ip, port) = endpoints
+            .into_iter()
+            .choose(&mut rand::rng())
+            .ok_or_else(|| Status::not_found("Error locating storage"))?;
+
+        let endpoint = match ip {
             IpAddr::V4(ipv4) => format!("https://{}:{}", ipv4, port),
             IpAddr::V6(ipv6) => format!("https://[{}]:{}", ipv6, port),
         };
 
-        // ! ⚠️⚠️ POR IMPLEMENTAR ⚠️⚠️
+        let operation_id = Uuid::new_v4();
+
+        sqlx::query("INSERT INTO operations(id, kind, executant) VALUES ($1,$2,$3)")
+            .bind(&operation_id)
+            .bind(sql_types::Kind::Download)
+            .bind(&token_claims.sub)
+            .execute(&self.pg_pool)
+            .await
+            .map_err(|_| Status::internal("Internal database error"))?;
+
         let response: AssignedNode = AssignedNode {
-            end_point,
-            operation: String::new(),
+            endpoint,
+            operation: operation_id.to_string(),
         };
         Ok(Response::new(response))
     }
 
-    // ? NO IMPLEMENTADO AÚN
-    // TODO: LA IMPLEMENTACIÓN DE BALACE DE CARGA
-    // TODO: iMPLEMENTACIÓN DE IDENTIFICACIÓN DE OPERACIÓN
+    // * FUNCIÓN CASI CORRECTA 😭
+    // ! POSIBLE CAMBIO DEPENDIENDO DE DESICIÓN DE DISEÑO DE COMUNICACIÓN
     async fn get_upload_node(
         &self,
-        _request: Request<UploadNodeRequest>,
+        request: Request<UploadNodeRequest>,
     ) -> Result<Response<AssignedNode>, Status> {
-        Err(Status::aborted("aborted"))
+        let token_claims = request
+            .extensions()
+            .get::<Claims>()
+            .ok_or(Status::internal(
+                r#"Authentication failure: Missing a required request extension "jwt_claims"#,
+            ))?;
+
+        let endpoints: Vec<(std::net::IpAddr, i32)> =
+            sqlx::query_as("SELECT ip, port FROM storage_nodes")
+                .fetch_all(&self.pg_pool)
+                .await
+                .map_err(|_| Status::internal("Internal database error"))?;
+        
+        // ! AQUI DESCANZAN MIS SUEÑOS DE HABERLO BALANCEADO CORRECTAMENTE 😭
+        let (ip, port) = endpoints
+            .into_iter()
+            .choose(&mut rand::rng())
+            .ok_or_else(|| Status::not_found("No storage available"))?;
+
+        let endpoint = match ip {
+            IpAddr::V4(ipv4) => format!("https://{}:{}", ipv4, port),
+            IpAddr::V6(ipv6) => format!("https://[{}]:{}", ipv6, port),
+        };
+
+        let operation_id = Uuid::new_v4();
+
+        sqlx::query("INSERT INTO operations(id, kind, executant) VALUES ($1,$2,$3)")
+            .bind(&operation_id)
+            .bind(sql_types::Kind::Upload)
+            .bind(&token_claims.sub)
+            .execute(&self.pg_pool)
+            .await
+            .map_err(|_| Status::internal("Internal database error"))?;
+
+        let response: AssignedNode = AssignedNode {
+            endpoint,
+            operation: operation_id.to_string(),
+        };
+        Ok(Response::new(response))
     }
 
     // * FUNCION CASI CORRECTA 😭
+    // TODO: MODIFICAR CLIENTE DE ELIMINACIÓN DE ARCHIVOS PARA NO RECONEXIÓN
     async fn delete_document(
         &self,
         request: Request<DeleteDocumentRequest>,
@@ -392,7 +428,7 @@ impl MetadataPrivate for super::Metadata {
         }
 
         // * RESCATE DE INFORMACIÓN ANTES DE LA ELIMINACIÓN
-        let (sn_id, sn_ip, sn_port): (Uuid, std::net::IpAddr, i32) = sqlx::query_as(
+        let document_locations: Vec<(Uuid, std::net::IpAddr, i32)> = sqlx::query_as(
             "SELECT sn.id, sn.ip, sn.port
             FROM storage_nodes sn
             JOIN document_storage_nodes dsn
@@ -401,9 +437,9 @@ impl MetadataPrivate for super::Metadata {
         ",
         )
         .bind(&id)
-        .fetch_one(&self.pg_pool)
+        .fetch_all(&self.pg_pool)
         .await
-        .map_err(|_| Status::not_found("Nonexistent document"))?;
+        .map_err(|_| Status::internal("Internal database error"))?;
 
         // * ELIMINACIÓN DEL DOCUMENTO DE LA BASE DE DATOS
         sqlx::query("DELETE FROM scientific_documents WHERE id = $1")
@@ -412,35 +448,44 @@ impl MetadataPrivate for super::Metadata {
             .await
             .map_err(|_| Status::not_found("Nonexistent document"))?;
 
-        let end_point = match sn_ip {
-            IpAddr::V4(ipv4) => format!("https://{}:{}", ipv4, sn_port),
-            IpAddr::V6(ipv6) => format!("https://[{}]:{}", ipv6, sn_port),
-        };
+        let documents_hash_map = document_locations
+            .into_iter()
+            .map(|(sn_id, sn_ip, sn_port)| {
+                let endpoint = match sn_ip {
+                    IpAddr::V4(ipv4) => format!("https://{}:{}", ipv4, sn_port),
+                    IpAddr::V6(ipv6) => format!("https://[{}]:{}", ipv6, sn_port),
+                };
+                ((sn_id, endpoint), vec![id])
+            })
+            .collect::<HashMap<(Uuid, String), Vec<Uuid>>>();
 
-        // * ELIMINACIÓN DEL ARCHIVOS EN NODOS DE ALMACENAMIENTO
-        let mut connection = match StorageInstructionsClient::connect(end_point).await {
-            Ok(conn) => conn,
-            Err(_) => {
-                sqlx::query("INSERT INTO failed_deletions(storage_node_id, files) VALUES ($1, $2)")
-                    .bind(sn_id)
-                    .bind(vec![id])
-                    .execute(&self.pg_pool)
-                    .await
-                    // ! ⚠️ TEORICAMENTE ESTO NO PUEDE FALLAR SI ESTÁ BIEN CONFIGURADA LA DATABASE ⚠️
-                    // ! 💀💀💀 PERO SI ESTO FALLA ESTO... SOLO QUEDA LLAMAR A DIOS Y REPARAR MANUALMENTE 💀💀💀
-                    .ok();
-
-                // * RETORNAR UN 'OK' EN LUGAR DE 'ERR' ES UNA DESICIÓN DE TRANSPARENCIA PARA EVITAR
-                // * QUE EL CLIENTE TENGA QUE ENTERARSE DE MALCOMUNICACIÓN INTERNA
-                return Ok(Response::new(()));
+        let pool = self.pg_pool.clone();
+        tokio::spawn(async move {
+            for (endpoint, doc_ids) in documents_hash_map {
+                let mut metadata_instructions =
+                    match StorageInstructionsClient::connect(endpoint.1.clone()).await {
+                        Ok(client) => client,
+                        Err(_) => {
+                            sqlx::query(
+                            "INSERT INTO failed_deletions(storage_node_id, files) VALUES ($1, $2)",
+                        )
+                        .bind(endpoint.0)
+                        .bind(doc_ids)
+                        .execute(&pool)
+                        .await
+                        // ! ⚠️ TEORICAMENTE ESTO NO PUEDE FALLAR SI ESTÁ BIEN CONFIGURADA LA DATABASE ⚠️
+                        // ! 💀💀💀 PERO SI ESTO FALLA ESTO... SOLO QUEDA LLAMAR A DIOS Y REPARAR MANUALMENTE 💀💀💀
+                        .ok();
+                            continue;
+                        }
+                    };
+                let request = DeleteFilesRequest {
+                    file_ids: doc_ids.into_iter().map(|id| id.to_string()).collect(),
+                };
+                // ! 🚧 SI ALGO MALO PUEDE PASAR, PASARÁ AQUÍ PERO SERÁ IGNORADO 🚧
+                metadata_instructions.delete_files(request).await.ok();
             }
-        };
-
-        let request = DeleteFileRequest {
-            file_id: id.to_string(),
-        };
-        // ! 🚧 SI ALGO MALO PUEDE PASAR, PASARÁ AQUÍ PERO SERÁ IGNORADO 🚧
-        connection.delete_file(request).await.ok();
+        });
 
         Ok(Response::new(()))
     }

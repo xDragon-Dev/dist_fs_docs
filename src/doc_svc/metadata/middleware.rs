@@ -1,9 +1,6 @@
-mod storage_private_proto {
-    tonic::include_proto!("storage_private");
-}
+use crate::common::authentication::verify_jwt;
+use crate::common::types::jwt_types::Claims;
 
-use super::auth::verify_jwt;
-use super::types::jwt_types::Claims;
 use tonic::Status;
 
 use sqlx::PgPool;
@@ -17,6 +14,12 @@ use tower::{Layer, Service};
 #[derive(Clone)]
 pub struct AuthLayer {
     pub db: PgPool,
+}
+
+impl AuthLayer {
+    pub fn new(db: sqlx::Pool<sqlx::Postgres>) -> Self {
+        Self { db }
+    }
 }
 
 impl<S> Layer<S> for AuthLayer {
@@ -59,11 +62,8 @@ where
         let db = self.db.clone();
 
         Box::pin(async move {
-            // Extraemos los metadatos directamente de los headers de la request HTTP
             let metadata = MetadataMap::from_headers(req.headers().clone());
 
-            // Ejecutamos la lógica de validación pasando los metadatos y las extensiones
-            // No necesitamos crear una tonic::Request completa aquí
             match auth_logic(metadata, &db).await {
                 Ok(claims) => {
                     let mut req = req;
@@ -91,7 +91,7 @@ async fn auth_logic(metadata: MetadataMap, db: &PgPool) -> Result<Claims, Status
     })?;
 
     let tokens_valid_after: i64 =
-        sqlx::query_scalar("SELECT tokens_valid_after FROM users WHERE user_name = $1")
+        sqlx::query_scalar("SELECT tokens_valid_after FROM users WHERE name = $1")
             .bind(&claims.sub)
             .fetch_one(db)
             .await

@@ -1,4 +1,4 @@
-INSERT INTO users (user_name, password_hash, user_role, tokens_valid_after)
+INSERT INTO users (name, password_hash, role, tokens_valid_after)
 VALUES 
     ('Juanito','$argon2id$v=19$m=19456,t=2,p=1$ZzUJe0QU4HQa2OF4g3cGTw$sYc5mqZ+whaKeXtZN05Te2EQ3zk3tgCwV8cnGJUoVyY','User', 0),
     ('Pedrito','$argon2id$v=19$m=19456,t=2,p=1$cL2uwHCXVMl8T1ufFveuxw$raHbYwmnbi/qdHmhhv/0mhpW0K+B0SpEYzRskD5/sjM','User', 0),
@@ -108,9 +108,6 @@ VALUES
 
     ('61815cc3-1e51-47af-82df-110ef9c98e26', 82);
 
-INSERT INTO operation_ids VALUES 
-('92390b1d-e4fb-4d4e-80f3-a0d5c780a505');
-
 /*
 FREE TO USE UUID FOR TESTING
 
@@ -123,13 +120,13 @@ b0447da8-5d55-4fea-96d5-ef47a3b331da
 c251d2a1-29f2-43ec-802f-2dcbec06b361
 */
 
-INSERT INTO metadata_nodes(id, ip, port, node_status, last_heartbeat)
+INSERT INTO metadata_nodes(id, ip, port)
 VALUES 
-('15ece130-2784-4932-8bb1-9887f7046b46', '::1', 31415, 'Active', CURRENT_TIMESTAMP);
+('15ece130-2784-4932-8bb1-9887f7046b46', '::1', 31415);
 
-INSERT INTO storage_nodes(id, ip, port, node_status, last_heartbeat)
+INSERT INTO storage_nodes(id, ip, port)
 VALUES 
-('6e56f659-2537-4746-a20e-4485df339931', '::1', 31416, 'Active', CURRENT_TIMESTAMP);
+('6e56f659-2537-4746-a20e-4485df339931', '::1', 31416);
 
 
 INSERT INTO document_storage_nodes(document_id,storage_node_id,is_verified,content_hash)

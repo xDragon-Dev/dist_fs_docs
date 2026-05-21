@@ -1,12 +1,4 @@
-mod storage_private_proto {
-    tonic::include_proto!("storage_private");
-}
-
-use storage_private_proto::storage_private_server::StoragePrivate;
-pub use storage_private_proto::storage_private_server::StoragePrivateServer;
-
-use storage_private_proto::upload_chunk::Data;
-use storage_private_proto::*;
+use crate::common::proto::storage_private::service::*;
 
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

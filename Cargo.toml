@@ -16,8 +16,8 @@ name = "client"
 path = "src/client/main.rs"
 
 [lib]
-name = "common"
-path = "src/common/lib.rs"
+name = "doc_svc"
+path = "src/doc_svc/lib.rs"
 
 [dependencies]
 argon2 = "0.5.3"
@@ -25,21 +25,24 @@ chrono = {version = "0.4.44", features = ["serde"]}
 dotenvy = "0.15.7"
 futures-util = "0.3.32"
 http = "1.4.0"
-jsonwebtoken = {version = "10.3.0", features = ["rust_crypto"]}
+jsonwebtoken = {version = "10.4.0", features = ["rust_crypto"]}
 prost = "0.14.3"
 prost-types = "0.14.3"
+rand = "0.10.1"
 regex = "1.12.3"
 serde = { version = "1.0.228", features = ["derive" ] }
 sha2 = "0.11.0"
-sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-ring-webpki", "postgres", "derive", "uuid", "chrono", "ipnetwork"] }
-tonic = "0.14.5"
-tonic-prost = "0.14.5"
-tokio = { version = "1.52.1", features = ["full"] }
+sqlx = { version = "0.8.6", features = [ "runtime-tokio", "tls-rustls-ring-webpki", "postgres", "derive", "uuid", "chrono", "ipnetwork"] }
+sysinfo = "0.39.2"
+tonic = "0.14.6"
+tonic-prost = "0.14.6"
+tokio = { version = "1.52.3", features = ["full"] }
 tokio-stream = "0.1.18"
 tokio-util = {version = "0.7.18", features = ["io"]}
 tower = "0.5.3"
 uuid = { version = "1.23.1", features = ["v4","serde"] }
 validator = {version = "0.20.0",  features = ["derive"]}
 
+
 [build-dependencies]
-tonic-prost-build = "0.14.5"
+tonic-prost-build = "0.14.6"

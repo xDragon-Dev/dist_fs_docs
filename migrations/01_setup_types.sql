@@ -10,17 +10,12 @@ CREATE TYPE document_type AS ENUM (
     'Thesis'
 );
 
-CREATE TYPE status AS ENUM (
-    'Active', 
-    'Offline'
-);
-
 CREATE TYPE scope AS ENUM (
     'Local',
     'Global'
-)
+);
 
 CREATE TYPE kind AS ENUM (
-    'Upload'
+    'Upload',
     'Download'
-)
+);

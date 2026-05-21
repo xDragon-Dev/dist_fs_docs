@@ -1,34 +1,6 @@
-mod storage_private_proto {
-    tonic::include_proto!("storage_private");
-}
-
-mod metadata_private_proto {
-    tonic::include_proto!("metadata_private");
-}
-
-mod metadata_public_proto {
-    tonic::include_proto!("metadata_public");
-}
-
 /*
-use metadata_private_proto::private_metadata_client::PrivateMetadataClient;
-use storage_private_proto::storage_client::StorageClient;
-
-use metadata_private_client
-
-use metadata_private_proto::*;
-use storage_private_proto::upload_chunk::Data;
-use storage_private_proto::*;
-*/
-
-use metadata_private_proto::metadata_private_client::MetadataPrivateClient;
-use metadata_public_proto::metadata_public_client::MetadataPublicClient;
-use storage_private_proto::storage_private_client::StoragePrivateClient;
-
-use metadata_private_proto::*;
-use metadata_public_proto::*;
-use storage_private_proto::upload_chunk::Data;
-use storage_private_proto::*;
+use doc_svc::metadata::client::*;
+use doc_svc::storage::client::*;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -39,10 +11,6 @@ use tokio::sync::mpsc;
 
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::ReceiverStream;
-
-use common::auth::generate_jwt;
-use common::types::jwt_types;
-use common::types::jwt_types::*;
 
 use sha2::{Digest, Sha256};
 
@@ -147,3 +115,4 @@ async fn _delete_file() -> Result<(), Box<dyn std::error::Error>> {
     connection.delete_document(request).await?;
     Ok(())
 }
+*/

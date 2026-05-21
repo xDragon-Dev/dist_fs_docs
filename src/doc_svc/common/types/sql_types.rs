@@ -29,6 +29,13 @@ pub enum Scope {
     Global,
 }
 
+#[derive(Debug, Type, PartialEq)]
+#[sqlx(type_name = "kind")]
+pub enum Kind {
+    Upload,
+    Download,
+}
+
 #[derive(FromRow, Debug)]
 pub struct ScientificDocumentRow {
     pub posted_by: String,
@@ -94,7 +101,7 @@ impl core::convert::TryFrom<i32> for Role {
     }
 }
 
-use crate::types::jwt_types;
+use super::jwt_types;
 
 impl core::convert::Into<jwt_types::Role> for Role {
     fn into(self) -> super::jwt_types::Role {

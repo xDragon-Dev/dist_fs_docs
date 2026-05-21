@@ -1,4 +1,4 @@
-INSERT INTO users (user_name, password_hash, user_role, tokens_valid_after)
+INSERT INTO users (name, password_hash, role, tokens_valid_after)
 --password = 12345678
 VALUES ('Admin', '$argon2id$v=19$m=19456,t=2,p=1$oOZzP3BDke48Q8c+GXdaaQ$4kvCXNWylP4+dkGvlzDbDik6aa2zYZbMCIbdsb0SPJM','Admin',0);
 

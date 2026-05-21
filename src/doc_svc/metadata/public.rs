@@ -1,16 +1,9 @@
-mod metadata_public_proto {
-    tonic::include_proto!("metadata_public");
-}
-
-use metadata_public_proto::metadata_public_server::MetadataPublic;
-pub use metadata_public_proto::metadata_public_server::MetadataPublicServer;
-
-use metadata_public_proto::{CreateUserRequest, LogInRequest, SubTopic, SubTopics, Topic, Topics};
+use crate::common::proto::metadata_public::service::*;
 
 use tonic::{Request, Response, Status};
 
-use common::auth::*;
-use common::types::{jwt_types, sql_types};
+use crate::common::authentication::*;
+use crate::common::types::{jwt_types, sql_types};
 
 use chrono::Utc;
 use validator::Validate;
@@ -35,7 +28,7 @@ impl MetadataPublic for super::Metadata {
                 ))
             })?;
 
-        let token_role = match request.metadata().get("jwt") {
+        let token_claims = match request.metadata().get("jwt") {
             Some(metadata_jwt) => {
                 let jwt = metadata_jwt
                     .to_str()
@@ -47,19 +40,45 @@ impl MetadataPublic for super::Metadata {
                         }
                         _ => Status::invalid_argument("Token decodification failed"),
                     })?;
-                Some(token_claims.role)
+                Some(token_claims)
             }
             None => None,
         };
 
-        let role = if (token_role == None || token_role == Some(jwt_types::Role::User))
-            && desired_role == sql_types::Role::Admin
-        {
-            return Err(Status::permission_denied(
-                "Insufficient permissions to do this operation",
-            ));
-        } else {
-            desired_role
+        if let Some(claims) = token_claims.as_ref() {
+            let tokens_valid_after: i64 =
+                sqlx::query_scalar("SELECT tokens_valid_after FROM users WHERE name = $1")
+                    .bind(&claims.sub)
+                    .fetch_one(&self.pg_pool)
+                    .await
+                    .map_err(|_| Status::not_found("Token subject not found in database"))?;
+
+            if tokens_valid_after > claims.iat {
+                return Err(Status::permission_denied(
+                    "The given token is no longer valid",
+                ));
+            }
+        }
+
+        let role = match token_claims {
+            Some(claims) => {
+                if claims.role == jwt_types::Role::User && desired_role == sql_types::Role::Admin {
+                    return Err(Status::permission_denied(
+                        "Insufficient permissions to do this operation",
+                    ));
+                } else {
+                    desired_role
+                }
+            }
+            None => {
+                if desired_role == sql_types::Role::Admin {
+                    return Err(Status::permission_denied(
+                        "Insufficient permissions to do this operation",
+                    ));
+                } else {
+                    desired_role
+                }
+            }
         };
 
         let request = request.into_inner();

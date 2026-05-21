@@ -1,7 +1,6 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let protos = [
         "proto/metadata_instructions.proto",
-        "proto/metadata_replication.proto",
         "proto/metadata_private.proto",
         "proto/metadata_public.proto",
         "proto/storage_instructions.proto",
@@ -25,21 +24,17 @@ fn validator_layer(builder: Builder) -> Builder {
         .message_attribute("ChangeUserNameRequest", "#[derive(validator::Validate)]")
         .field_attribute(
             "CreateUserRequest.user_name",
-            r#"#[validate(regex(path = *common::valid::USER_REGEX, message = "Invalid username"))]"#
+            r#"#[validate(regex(path = *doc_svc::validation::USER_REGEX, message = "Invalid username"))]"#
         )
         .field_attribute(
             "ChangeUserNameRequest.new_user_name", 
-            r#"#[validate(regex(path = *common::valid::USER_REGEX, message = "Invalid username"))]"#
+            r#"#[validate(regex(path = *doc_svc::validation::USER_REGEX, message = "Invalid username"))]"#
         )
         .field_attribute(
             "CreateUserRequest.password",
             r#"#[validate(
             length(min = 8, message = "Field must be at least 8 characters long"),
-            custom(function = "common::valid::has_lowercase"),
-            custom(function = "common::valid::has_uppercase"),
-            custom(function = "common::valid::has_numeric"),
-            custom(function = "common::valid::has_special"),
-            custom(function = "common::valid::has_valid_chars")
+            custom(function = "doc_svc::validation::password_check")
         )]"#,
         )
         .field_attribute(
@@ -50,11 +45,7 @@ fn validator_layer(builder: Builder) -> Builder {
             "ChangePasswordRequest.new_password", 
             r#"#[validate(
             length(min = 8, message = "Field must be at least 8 characters long"),
-            custom(function = "common::valid::has_lowercase"),
-            custom(function = "common::valid::has_uppercase"),
-            custom(function = "common::valid::has_numeric"),
-            custom(function = "common::valid::has_special"),
-            custom(function = "common::valid::has_valid_chars")
+            custom(function = "doc_svc::validation::password_check")
         )]"#)
         .field_attribute(
             "ChangePasswordRequest.confirm_new_password",

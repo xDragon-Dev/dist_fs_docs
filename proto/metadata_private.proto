@@ -36,7 +36,7 @@ message DownloadNodeRequest {
 
 //Datatype that contains information about a storage node you need to download or upload
 message AssignedNode {
-  string end_point = 1;
+  string endpoint = 1;
   string operation = 2;
 }
 
